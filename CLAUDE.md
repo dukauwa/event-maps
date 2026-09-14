@@ -6,7 +6,7 @@ Tessera is an interactive event floor plan product (ExpoFP replacement): floor p
 
 ## Commands
 - `pnpm dev` — dev server (auto-seeds the demo event on first run; login admin@tessera.local / tessera-demo).
-- `pnpm typecheck` — `tsc --noEmit`. Must be clean before you claim done.
+- `pnpm typecheck` — runs `next typegen` (creates the `RouteContext`/`PageProps` globals) then `tsc --noEmit`. Must be clean before you claim done.
 - `pnpm test` — vitest. `pnpm vitest run <path>` for one area.
 - `pnpm lint` — eslint. `pnpm build` — full Next build (slow; run only at integration time, never while other agents work in the tree).
 - `pnpm seed:reset` — wipe `data/app.db` and re-seed.

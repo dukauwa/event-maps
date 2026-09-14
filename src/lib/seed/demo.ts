@@ -410,6 +410,20 @@ export function seedDemo(d: DB): SeedResult {
     d.insert(schema.sessions).values({ id: newId("se"), eventId, title: `Live demo at booth ${label}`, description: "Product demo and giveaways.", startsAt: `2026-11-17T${11 + i}:30:00.000Z`, endsAt: `2026-11-17T${12 + i}:00:00.000Z`, boothId: bid, track: "Booth demos", speakers: [] }).run();
   });
 
+  // Sponsorship packages and booth extras
+  const extraIds = [
+    { id: newId("sp"), kind: "sponsorship" as const, name: "Lanyard sponsor", description: "Logo on all attendee lanyards.", priceCents: 1_500_000, limitPerEvent: 1 },
+    { id: newId("sp"), kind: "sponsorship" as const, name: "Charging lounge sponsor", description: "Branding on the charging lounge.", priceCents: 800_000, limitPerEvent: 2 },
+    { id: newId("sp"), kind: "booth_extra" as const, name: "Extra power (32A)", description: "Three-phase power to the booth.", priceCents: 45_000, limitPerExhibitor: 2 },
+    { id: newId("sp"), kind: "booth_extra" as const, name: "Lead scanner licence", description: "One Grip lead-capture licence.", priceCents: 29_000, limitPerExhibitor: 10 },
+  ];
+  extraIds.forEach((x, i) => d.insert(schema.extras).values({ id: x.id, eventId, kind: x.kind, name: x.name, description: x.description, priceCents: x.priceCents, currency: "GBP", limitPerEvent: x.limitPerEvent ?? null, limitPerExhibitor: x.limitPerExhibitor ?? null, sortIndex: i }).run());
+  d.insert(schema.exhibitorExtras).values([
+    { id: newId("sp"), extraId: extraIds[0].id, exhibitorId: firstPlatinum, quantity: 1 },
+    { id: newId("sp"), extraId: extraIds[3].id, exhibitorId: firstPlatinum, quantity: 4 },
+    { id: newId("sp"), extraId: extraIds[2].id, exhibitorId: firstGold, quantity: 1 },
+  ]).run();
+
   // Sponsor banners
   d.insert(schema.banners).values([
     { id: newId("ba"), eventId, exhibitorId: firstPlatinum, placement: "search_top", title: "Platinum sponsor", imageUrl: bannerDataUri("Nimbus Cloud · Platinum Sponsor", "#1d4ed8"), linkUrl: "https://example.com/nimbus", weight: 3 },

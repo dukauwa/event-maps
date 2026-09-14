@@ -30,6 +30,8 @@ export function buildBundle(d: DB, eventId: string): PlanBundle | null {
   const transitions = d.select().from(schema.transitions).where(eq(schema.transitions.eventId, eventId)).all();
   const banners = d.select().from(schema.banners).where(eq(schema.banners.eventId, eventId)).all();
   const rules = d.select().from(schema.pricingRules).where(eq(schema.pricingRules.eventId, eventId)).all();
+  const extras = d.select().from(schema.extras).where(eq(schema.extras.eventId, eventId)).orderBy(asc(schema.extras.sortIndex)).all();
+  const extraIdSet = new Set(extras.map((x) => x.id));
 
   const boothIds = new Set(booths.map((b) => b.id));
   const exIds = new Set(exhibitors.map((e) => e.id));
@@ -44,6 +46,8 @@ export function buildBundle(d: DB, eventId: string): PlanBundle | null {
   }
   const exToCat = new Map<string, string[]>();
   for (const r of ec) exToCat.set(r.exhibitorId, [...(exToCat.get(r.exhibitorId) ?? []), r.categoryId]);
+  const exToExtra = new Map<string, string[]>();
+  for (const r of d.select().from(schema.exhibitorExtras).all().filter((r) => extraIdSet.has(r.extraId))) exToExtra.set(r.exhibitorId, [...(exToExtra.get(r.exhibitorId) ?? []), r.extraId]);
   const boothLabel = new Map(booths.map((b) => [b.id, b.label]));
 
   const settings = ev.settings;
@@ -69,6 +73,7 @@ export function buildBundle(d: DB, eventId: string): PlanBundle | null {
       labelHidden: b.labelHidden,
       exhibitorIds: boothToEx.get(b.id) ?? [],
       height3d: b.height3d,
+      metadata: b.metadata ?? {},
     };
   });
 
@@ -95,8 +100,12 @@ export function buildBundle(d: DB, eventId: string): PlanBundle | null {
       customButtonTitle: e.customButtonTitle,
       customButtonUrl: e.customButtonUrl,
       videoUrl: e.videoUrl,
+      leadingImageUrl: e.leadingImageUrl,
+      logoInBooth: e.logoInBooth,
       socials: e.socials ?? {},
       tags: e.tags ?? [],
+      metadata: e.metadata ?? {},
+      extraIds: exToExtra.get(e.id) ?? [],
       categoryIds: exToCat.get(e.id) ?? [],
       boothIds: bIds,
       boothLabels: bIds.map((id) => boothLabel.get(id)!).filter(Boolean),
@@ -149,6 +158,7 @@ export function buildBundle(d: DB, eventId: string): PlanBundle | null {
     banners: banners
       .filter((b) => b.active && (!b.startsAt || b.startsAt <= new Date().toISOString()) && (!b.endsAt || b.endsAt >= new Date().toISOString()))
       .map((b) => ({ id: b.id, exhibitorId: b.exhibitorId, placement: b.placement, title: b.title, imageUrl: b.imageUrl, linkUrl: b.linkUrl, weight: b.weight })),
+    extras: extras.map((x) => ({ id: x.id, kind: x.kind, name: x.name, description: x.description, priceCents: x.priceCents, currency: x.currency, limitPerEvent: x.limitPerEvent, limitPerExhibitor: x.limitPerExhibitor, reserveOrBuyAllowed: x.reserveOrBuyAllowed, sortIndex: x.sortIndex })),
   };
 }
 

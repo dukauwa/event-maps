@@ -14,6 +14,11 @@ export const SDK_METHODS = [
   "switchView", "fitBounds", "getBoothRect", "convertToGeo", "convertFromGeo", "highlightExhibitors", "highlightBooths",
   "clearHighlights", "search", "getFloors", "activateFloor", "showSearch", "hideSearch", "setLanguage", "getLanguage",
   "setKiosk", "getState", "getVersion", "flyTo", "setTheme", "openExhibitor", "closePanel",
+  // ExpoFP v3 parity
+  "select", "selectAccessibleRoute", "deselectRoute", "openPlanner", "showList", "deselectCurrentPosition",
+  "isGpsTrackingEnabled", "setGpsTrackingEnabled", "setEntitiesBookmarks", "setEntitiesVisited", "selectMarker",
+  "drawCircles", "clearCircles", "setCamera", "getCamera", "zoomTo", "getBounds", "getGeoConfig", "changeLanguage", "reset",
+  "getBoothsGeometry", "getRoute",
 ] as const;
 export type SdkMethod = (typeof SDK_METHODS)[number];
 
@@ -22,6 +27,7 @@ export const SDK_EVENTS = [
   "init", "ready", "fpConfigured", "boothClick", "exhibitorClick", "details", "direction", "routeCleared",
   "bookmarkClick", "bookmarksChanged", "visitedClick", "categoryClick", "floorActivated", "currentPositionChanged",
   "markerClick", "exhibitorCustomButtonClick", "getCoordsClick", "search", "share", "reserveClick", "error",
+  "leaveEvent", "sessionClick", "cameraChanged", "stateChanged",
 ] as const;
 export type SdkEvent = (typeof SDK_EVENTS)[number];
 
@@ -55,6 +61,16 @@ export interface ViewerParams {
   theme?: "light" | "dark";
   preview?: "1" | "0";
   session?: string;
+  embed?: "1" | "0";
+  consent?: "ask" | "granted" | "denied";
+  hide?: string; // comma list: controls,levels,header,overlay,searchButtons (ExpoFP compat)
+  bearing?: string;
+  zoom?: string;
+  center?: string; // "x,y" plan coords
+  tab?: "exhibitors" | "categories" | "sessions" | "plan";
 }
+
+/** Camera description shared by setCamera/getCamera (plan coords or lng/lat). */
+export interface SdkCamera { x?: number; y?: number; lat?: number; lng?: number; levelId?: string; zoom?: number; bearing?: number; pitch?: number; durationMs?: number }
 
 export interface SdkMarker { id: string; levelId?: string; x: number; y: number; label?: string; color?: string; icon?: string }

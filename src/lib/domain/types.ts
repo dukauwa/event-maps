@@ -282,6 +282,7 @@ export interface BundleBooth {
   labelHidden: boolean;
   exhibitorIds: string[];
   height3d?: number | null;
+  metadata: Record<string, string>;
 }
 
 export interface BundleExhibitor {
@@ -305,8 +306,12 @@ export interface BundleExhibitor {
   customButtonTitle?: string | null;
   customButtonUrl?: string | null;
   videoUrl?: string | null;
+  leadingImageUrl?: string | null;
+  logoInBooth: boolean;
   socials: Record<string, string>;
   tags: string[];
+  metadata: Record<string, string>;
+  extraIds: string[];
   categoryIds: string[];
   boothIds: string[];
   boothLabels: string[];
@@ -354,6 +359,19 @@ export interface BundleBanner {
   weight: number;
 }
 
+export interface BundleExtra {
+  id: string;
+  kind: "sponsorship" | "booth_extra";
+  name: string;
+  description?: string | null;
+  priceCents?: number | null;
+  currency: string;
+  limitPerEvent?: number | null;
+  limitPerExhibitor?: number | null;
+  reserveOrBuyAllowed: boolean;
+  sortIndex: number;
+}
+
 export interface PlanBundle {
   format: "tessera.bundle";
   formatVersion: 1;
@@ -367,6 +385,7 @@ export interface PlanBundle {
   sessions: BundleSession[];
   wayfinding: BundleWayfinding;
   banners: BundleBanner[];
+  extras: BundleExtra[];
 }
 
 /* ------------------------------------------------------------------ */
@@ -406,10 +425,10 @@ export interface RouteError { ok: false; error: string }
 /* ------------------------------------------------------------------ */
 
 export const WEBHOOK_EVENTS = [
-  "booth.created", "booth.updated", "booth.deleted", "booth.status_changed", "booth.assigned", "booth.unassigned",
+  "booth.created", "booth.updated", "booth.deleted", "booth.status_changed", "booth.assigned", "booth.unassigned", "booth.on_hold",
   "exhibitor.created", "exhibitor.updated", "exhibitor.deleted",
   "order.created", "order.paid", "order.cancelled", "order.expired",
-  "floorplan.published", "session.created", "session.updated", "session.deleted",
+  "floorplan.published", "session.created", "session.updated", "session.deleted", "extra.assigned", "extra.removed",
 ] as const;
 export type WebhookEventType = (typeof WEBHOOK_EVENTS)[number];
 

@@ -85,6 +85,7 @@ export const booths = sqliteTable("booths", {
   labelHidden: integer("label_hidden", { mode: "boolean" }).notNull().default(false),
   height3d: real("height_3d"),
   notes: text("notes"),
+  metadata: text("metadata", { mode: "json" }).$type<Record<string, string>>().notNull().default({}),
   holdUntil: text("hold_until"),
   sortIndex: integer("sort_index").notNull().default(0),
   createdAt: text("created_at").notNull().$defaultFn(now),
@@ -117,6 +118,10 @@ export const exhibitors = sqliteTable("exhibitors", {
   customButtonTitle: text("custom_button_title"),
   customButtonUrl: text("custom_button_url"),
   videoUrl: text("video_url"),
+  leadingImageUrl: text("leading_image_url"),
+  logoInBooth: integer("logo_in_booth", { mode: "boolean" }).notNull().default(true),
+  metadata: text("metadata", { mode: "json" }).$type<Record<string, string>>().notNull().default({}),
+  rebookingState: integer("rebooking_state").notNull().default(0),
   socials: text("socials", { mode: "json" }).$type<Record<string, string>>().notNull().default({}),
   tags: text("tags", { mode: "json" }).$type<string[]>().notNull().default([]),
   contactName: text("contact_name"),
@@ -206,6 +211,31 @@ export const transitions = sqliteTable("transitions", {
   nodeIds: text("node_ids", { mode: "json" }).$type<string[]>().notNull().default([]),
   travelSeconds: integer("travel_seconds").notNull().default(60),
 }, (t) => [index("transitions_event_idx").on(t.eventId)]);
+
+/** Sponsorship packages and booth extras (ExpoFP "extras"): sellable add-ons with limits. */
+export const extras = sqliteTable("extras", {
+  id: text("id").primaryKey(),
+  eventId: text("event_id").notNull().references(() => events.id, { onDelete: "cascade" }),
+  kind: text("kind").$type<"sponsorship" | "booth_extra">().notNull().default("sponsorship"),
+  name: text("name").notNull(),
+  description: text("description"),
+  priceCents: integer("price_cents"),
+  currency: text("currency").notNull().default("USD"),
+  limitPerEvent: integer("limit_per_event"),
+  limitPerExhibitor: integer("limit_per_exhibitor"),
+  reserveOrBuyAllowed: integer("reserve_or_buy_allowed", { mode: "boolean" }).notNull().default(true),
+  sortIndex: integer("sort_index").notNull().default(0),
+  createdAt: text("created_at").notNull().$defaultFn(now),
+}, (t) => [index("extras_event_idx").on(t.eventId)]);
+
+export const exhibitorExtras = sqliteTable("exhibitor_extras", {
+  id: text("id").primaryKey(),
+  extraId: text("extra_id").notNull().references(() => extras.id, { onDelete: "cascade" }),
+  exhibitorId: text("exhibitor_id").notNull().references(() => exhibitors.id, { onDelete: "cascade" }),
+  boothId: text("booth_id").references(() => booths.id, { onDelete: "set null" }),
+  quantity: integer("quantity").notNull().default(1),
+  createdAt: text("created_at").notNull().$defaultFn(now),
+}, (t) => [index("exhibitor_extras_ex_idx").on(t.exhibitorId), index("exhibitor_extras_extra_idx").on(t.extraId)]);
 
 export const pricingRules = sqliteTable("pricing_rules", {
   id: text("id").primaryKey(),
@@ -353,6 +383,8 @@ export type WayNode = typeof wayNodes.$inferSelect;
 export type WayEdge = typeof wayEdges.$inferSelect;
 export type Transition = typeof transitions.$inferSelect;
 export type PricingRule = typeof pricingRules.$inferSelect;
+export type Extra = typeof extras.$inferSelect;
+export type ExhibitorExtra = typeof exhibitorExtras.$inferSelect;
 export type Order = typeof orders.$inferSelect;
 export type Banner = typeof banners.$inferSelect;
 export type ApiKey = typeof apiKeys.$inferSelect;
