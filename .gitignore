@@ -44,3 +44,4 @@ next-env.d.ts
 /data/*.db
 /data/*.db-*
 /data/uploads/
+e2e-out/

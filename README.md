@@ -1,36 +1,75 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Tessera
 
-## Getting Started
+Interactive event floor plans, booth sales and attendee wayfinding. A self-hosted replacement for ExpoFP, built by Grip.
 
-First, run the development server:
+*Tessera* (Latin): a small tile in a mosaic, and the token Romans used for admission to the games. Booths tile a hall; attendees need a way in and a way around.
+
+## What it does
+
+| Persona | Capabilities |
+| --- | --- |
+| Organiser | Floor plan designer (draw, resize, merge, booth arrays, SVG/CSV import, multi-level, georeferencing, background images), booth inventory with statuses, holds and pricing rules, exhibitor management with magic-link portals, categories, sessions, sponsorship packages and booth extras, banner ads, publish with version history, analytics (views, searches, zero-result searches, heat maps), API keys, webhooks, Grip sync. |
+| Exhibitor | Self-service portal: profile with live preview and completeness score, logo/gallery upload, reserve or buy a booth, add-ons, orders, per-exhibitor analytics, share link, QR and "find us" badge. |
+| Attendee | Fast MapLibre viewer: search, categories, A–Z list, sessions, exhibitor details, directions with accessible routing across levels, multi-stop "my plan" optimisation, bookmarks, share, kiosk mode with "you are here", 2D/3D, 10 languages, deep links, offline-friendly bundle. |
+| Developer | REST API with OpenAPI, ExpoFP-compatible JSON API shim and `data.json`, embed SDK mirroring ExpoFP's `FloorPlan` API, signed webhooks with retries, GeoJSON/CSV/offline exports. |
+
+## Run it
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
+pnpm dev            # http://localhost:3000 — seeds a demo event on first start
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- Attendee viewer: <http://localhost:3000/e/grip-connect-2026>
+- Organiser portal: <http://localhost:3000/admin> — `admin@tessera.local` / `tessera-demo`
+- Developer docs: <http://localhost:3000/docs>
+- Demo API key: `tsr_live_demo_9f3b1c7e2a4d6f8b0c1d2e3f4a5b6c7d`
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+pnpm typecheck      # next typegen + tsc
+pnpm test           # vitest (routing engine, services, viewer/editor libraries)
+pnpm e2e            # boots a dev server, walks every flow with Playwright, screenshots to ./e2e-out
+pnpm build && pnpm start
+pnpm seed:reset     # wipe data/app.db and re-seed
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Configuration
 
-## Learn More
+| Variable | Purpose |
+| --- | --- |
+| `DATABASE_PATH` | SQLite file (default `./data/app.db`). |
+| `UPLOADS_DIR` | Media uploads (default `./data/uploads`). |
+| `APP_URL` | Public origin used in links and checkout redirects. |
+| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | Enable Stripe Checkout (`provider: stripe` in Sales settings). Webhook URL: `/api/stripe/webhook`. |
+| `GRIP_API_BASE`, `GRIP_API_KEY` | Grip exhibitor sync (or pass a `sourceUrl` per sync). |
+| `AUTO_SEED=0` | Disable demo seeding on first start. |
 
-To learn more about Next.js, take a look at the following resources:
+## Architecture
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Next.js 16 (App Router), React 19, TypeScript strict, Tailwind 4.** Server components read through `src/lib/services/*`; client components mutate through `/api/v1`.
+- **Drizzle ORM on SQLite** (`better-sqlite3`, WAL). Schema in `src/lib/db/schema.ts`, migrations in `drizzle/`. Swapping to Postgres is a driver change.
+- **Plan coordinates are metres** (x right, y down). Each level may carry a georeference (origin lat/lng, rotation) so the plan renders on an open basemap (OpenFreeMap) with self-hosted glyphs. No Google Maps or Mapbox keys.
+- **Routing** (`src/lib/routing`): A* over an aisle network with accessible/one-way edges and inter-level transitions, connector snapping, turn instructions, multi-stop optimisation (nearest neighbour + 2-opt) and automatic network generation from booth/wall geometry.
+- **Publishing** snapshots the event into an immutable bundle (`floorplan_versions`) served at `/e/{slug}/data.json`; the viewer polls `version.json` and hot-reloads.
+- **Embed SDK** (`packages/sdk`, built to `public/sdk/tessera.js`): iframe + postMessage RPC; protocol shared with the viewer via `src/lib/sdk-protocol.ts`.
+- **Webhooks**: HMAC-SHA256 signed, 5 retries with backoff, delivery log.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+src/app/e/[slug]          attendee viewer, embed target, public data feeds, reservation flow
+src/app/admin             organiser portal (+ /designer)
+src/app/x/[token]         exhibitor portal
+src/app/api/v1            REST API (+ /compat/expofp shim, /openapi.json)
+src/app/docs              developer documentation
+src/lib/{domain,db,services,routing,bundle,export,seed}
+packages/sdk              embed SDK source
+```
 
-## Deploy on Vercel
+## ExpoFP parity checklist
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [x] Designer: draw/drag/resize/merge booths, multi-level, background image, georeference, SVG and CSV import
+- [x] Booth statuses (available/held/reserved/sold/unavailable), pricing rules, holds with expiry, reserve/buy/inquiry modes, Stripe or invoice checkout
+- [x] Exhibitor self-service with auto-login links, logo/gallery, custom button, video, socials, categories, extras/sponsorships with limits
+- [x] Attendee viewer: search, filters, bookmarks, directions, accessible routing, multi-level, kiosk, share, languages, banners/featured listings
+- [x] `FloorPlan` JS API (methods, events, deep links), `data.json` feed, JSON API actions, webhooks, offline export, GeoJSON
+- [x] Analytics: views, searches, exhibitor/booth popularity, heat map, per-exhibitor stats
+- [x] Publish/version history, duplicate event for next year, API keys, CSV import/export
