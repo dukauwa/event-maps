@@ -1,0 +1,8 @@
+{
+  "name": "@tessera/sdk",
+  "version": "1.0.0",
+  "description": "Embed SDK for Tessera interactive floor plans (ExpoFP-compatible API).",
+  "type": "module",
+  "main": "./src/index.ts",
+  "license": "MIT"
+}
