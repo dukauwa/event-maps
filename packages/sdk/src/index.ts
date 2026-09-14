@@ -17,7 +17,7 @@ export type { ViewerParams, SdkMarker, SdkCamera, SdkMethod, SdkEvent };
 export type EventHandler = (payload: unknown) => void;
 type HandlerMap = Partial<Record<`on${Capitalize<SdkEvent>}`, EventHandler>>;
 
-export interface FloorPlanOptions extends HandlerMap {
+export interface FloorPlanOptions extends Omit<HandlerMap, "onInit"> {
   /** Container element or CSS selector. Defaults to `#floorplan`, else a full-screen fixed div. */
   element?: HTMLElement | string;
   /** Event slug or id (as in /e/{eventId}). */
