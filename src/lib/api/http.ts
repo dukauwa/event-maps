@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { ZodError, type ZodType } from "zod";
+import { z, ZodError, type ZodType } from "zod";
 import { db } from "@/lib/db";
 import { apiPrincipal, AuthError, type ApiPrincipal } from "@/lib/auth/session";
 import { findEventBySlugOrId } from "@/lib/bundle";
@@ -91,4 +91,18 @@ export function paginate<T>(items: T[], req: Request): { data: T[]; meta: { tota
   const limit = Math.min(1000, Math.max(1, Number(url.searchParams.get("limit") ?? 200)));
   const offset = Math.max(0, Number(url.searchParams.get("offset") ?? 0));
   return { data: items.slice(offset, offset + limit), meta: { total: items.length, limit, offset } };
+}
+
+/** Read CSV text from a request: multipart `file`/`csv` field, raw `text/csv`, or JSON `{ csv }`. */
+export async function readCsv(req: Request): Promise<string> {
+  const ct = req.headers.get("content-type") ?? "";
+  if (ct.includes("multipart/form-data")) {
+    const form = await req.formData();
+    const f = form.get("file");
+    if (f instanceof File) return await f.text();
+    return String(form.get("csv") ?? "");
+  }
+  if (ct.includes("text/csv") || ct.includes("text/plain")) return await req.text();
+  const body = await parseBody(req, z.object({ csv: z.string().min(1) }));
+  return body.csv;
 }

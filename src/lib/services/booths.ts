@@ -25,6 +25,7 @@ export const boothInput = z.object({
   labelHidden: z.boolean().optional(),
   height3d: z.number().nonnegative().nullish(),
   notes: z.string().max(2000).nullish(),
+  metadata: z.record(z.string(), z.string()).optional(),
   sortIndex: z.number().int().optional(),
   exhibitorIds: z.array(z.string()).optional(),
 });

@@ -3,7 +3,7 @@
  *
  * Typical use:
  *   const graph = buildGraph(bundle);              // cache per bundle version
- *   const route = findRoute(bundle, graph, from, to, { accessible: true });
+ *   const route = findRoute(bundle, graph, from, to, { accessible: true, via: [stop] });
  *   const tour  = optimizeRoute(bundle, graph, start, stops);
  *   const auto  = generateWayfindingGraph(level, bundle.booths);
  */
@@ -36,8 +36,11 @@ export { MinHeap, astar } from "./astar";
 export type { AStarOptions, AStarResult } from "./astar";
 
 export {
+  MAX_VIA_POINTS,
   bundleIndex,
   endpointKey,
+  findBooth,
+  findExhibitor,
   findRoute,
   levelName,
   polylineLength,

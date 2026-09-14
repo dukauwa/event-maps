@@ -23,7 +23,7 @@ export interface AutoGraphOptions {
   cellSize?: number;
   /** Extra distance kept from booths / walls in meters (default 0.6). */
   clearance?: number;
-  /** Area to rasterise. Default: the level's size, or the booths' bbox padded by 6 m. */
+  /** Area to rasterise. Default: bbox of booths and elements padded by 6 m, clipped to the level's size. */
   bounds?: AutoGraphBounds;
   /** Connected components with fewer nodes than this are dropped (default 10). */
   minComponentSize?: number;
@@ -54,9 +54,11 @@ const DEFAULT_MAX_CELLS = 4_000_000;
 const DEFAULT_WALL_WIDTH = 0.2;
 const BOUNDS_PADDING = 6;
 
-const BLOCKING_KINDS = new Set<BundleElement["kind"]>(["wall", "zone", "shape"]);
+const BLOCKING_KINDS = new Set<BundleElement["kind"]>(["wall", "zone", "shape", "room", "stage"]);
+/** Elements whose geometry does not extend the default rasterisation bounds. */
+const NON_SPATIAL_KINDS = new Set<BundleElement["kind"]>(["text", "image"]);
 
-/** Does this element block routing? wall/zone/shape block unless `blocksRouting === false`; anything blocks when `=== true`. */
+/** Does this element block routing? wall/zone/shape/room/stage block unless `blocksRouting === false`; anything blocks when `=== true`. */
 export function elementBlocksRouting(el: BundleElement): boolean {
   const flag = el.props?.blocksRouting;
   if (flag === true) return true;
@@ -73,13 +75,25 @@ function elementPoints(el: BundleElement): Point[] {
 
 function resolveBounds(level: BundleLevel, booths: BundleBooth[], explicit?: AutoGraphBounds): AutoGraphBounds | null {
   if (explicit && explicit.maxX > explicit.minX && explicit.maxY > explicit.minY) return explicit;
-  if (level.widthM > 0 && level.heightM > 0) return { minX: 0, minY: 0, maxX: level.widthM, maxY: level.heightM };
+  const hasSize = level.widthM > 0 && level.heightM > 0;
   const pts: Point[] = [];
   for (const b of booths) pts.push(...b.polygon);
-  if (pts.length === 0) for (const el of level.elements ?? []) pts.push(...elementPoints(el));
-  if (pts.length === 0) return null;
+  for (const el of level.elements ?? []) if (!NON_SPATIAL_KINDS.has(el.kind)) pts.push(...elementPoints(el));
+  if (pts.length === 0) return hasSize ? { minX: 0, minY: 0, maxX: level.widthM, maxY: level.heightM } : null;
   const bb = bbox(pts);
-  return { minX: bb.minX - BOUNDS_PADDING, minY: bb.minY - BOUNDS_PADDING, maxX: bb.maxX + BOUNDS_PADDING, maxY: bb.maxY + BOUNDS_PADDING };
+  const bounds: AutoGraphBounds = {
+    minX: bb.minX - BOUNDS_PADDING,
+    minY: bb.minY - BOUNDS_PADDING,
+    maxX: bb.maxX + BOUNDS_PADDING,
+    maxY: bb.maxY + BOUNDS_PADDING,
+  };
+  if (hasSize) {
+    bounds.minX = Math.max(0, bounds.minX);
+    bounds.minY = Math.max(0, bounds.minY);
+    bounds.maxX = Math.min(level.widthM, bounds.maxX);
+    bounds.maxY = Math.min(level.heightM, bounds.maxY);
+  }
+  return bounds.maxX > bounds.minX && bounds.maxY > bounds.minY ? bounds : null;
 }
 
 /** Occupancy grid with helpers to rasterise obstacles. */

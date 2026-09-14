@@ -2,15 +2,16 @@
  * Multi-stop route optimisation ("visit these booths in the best order").
  *
  * Pairwise legs are computed with {@link findRoute} (cached per endpoint pair), then the visiting
- * order is built with nearest-neighbour and improved with 2-opt and or-opt local search. Costs are
- * durations (seconds), so level transitions and edge weights are taken into account. Up to 25
- * stops are supported (26 x 25 = 650 leg computations worst case).
+ * order is built with nearest-neighbour and improved with 2-opt and or-opt local search. Leg costs
+ * are walking distance plus level transitions priced at their travel time (in meter equivalents),
+ * so a lift ride counts as much as the walk it replaces. Up to 25 stops are supported
+ * (26 x 25 = 650 leg computations worst case).
  */
 
 import type { PlanBundle, RouteEndpoint, RouteError, RouteResult } from "@/lib/domain/types";
 import { round } from "@/lib/domain/geometry";
-import type { RoutingGraph } from "./graph";
-import { endpointKey, findRoute } from "./route";
+import { WALKING_SPEED_MPS, type RoutingGraph } from "./graph";
+import { bundleIndex, endpointKey, findRoute } from "./route";
 
 export const MAX_OPTIMIZE_STOPS = 25;
 
@@ -49,6 +50,17 @@ function leg(
     cache.set(key, r);
   }
   return r;
+}
+
+/** Walking distance plus transition travel time converted to meter equivalents. */
+function legCost(bundle: PlanBundle, r: RouteResult): number {
+  const transitions = bundleIndex(bundle).transitions;
+  let seconds = 0;
+  for (const step of r.steps) {
+    if (!step.transition) continue;
+    seconds += transitions.get(step.transition.id)?.travelSeconds ?? 0;
+  }
+  return r.distanceM + seconds * WALKING_SPEED_MPS;
 }
 
 function pathCost(cost: number[][], seq: number[], closed: boolean): number {
@@ -157,7 +169,7 @@ export function optimizeRoute(
         continue;
       }
       const r = leg(cache, bundle, graph, points, i, j, accessible);
-      cost[i][j] = r.ok ? r.durationSeconds : Infinity;
+      cost[i][j] = r.ok ? legCost(bundle, r) : Infinity;
     }
   }
 

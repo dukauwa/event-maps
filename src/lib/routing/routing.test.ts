@@ -13,7 +13,7 @@ import {
   type RouteEndpoint,
   type RouteResult,
 } from "@/lib/domain/types";
-import { pointInPolygon, segmentsIntersect } from "@/lib/domain/geometry";
+import { closestPointOnSegment, pointInPolygon, segmentsIntersect } from "@/lib/domain/geometry";
 import { astar, buildGraph, endpointKey, findRoute, generateWayfindingGraph, optimizeRoute, resolveEndpoint } from "./index";
 
 /* ------------------------------------------------------------------ */
@@ -24,7 +24,7 @@ function level(id: string, name: string, widthM: number, heightM: number, elemen
   return { id, name, shortName: name, sortIndex: 0, widthM, heightM, background: null, georef: null, elements };
 }
 
-function booth(id: string, levelId: string, x: number, y: number, w: number, h: number, exhibitorIds: string[] = []): BundleBooth {
+function booth(id: string, levelId: string, x: number, y: number, w: number, h: number, extra: Partial<BundleBooth> = {}): BundleBooth {
   return {
     id,
     levelId,
@@ -37,12 +37,28 @@ function booth(id: string, levelId: string, x: number, y: number, w: number, h: 
     rotationDeg: 0,
     colors: null,
     labelHidden: false,
-    exhibitorIds,
+    exhibitorIds: [],
+    metadata: {},
+    ...extra,
   };
 }
 
-function exhibitor(id: string, name: string, boothIds: string[]): BundleExhibitor {
-  return { id, name, slug: id, gallery: [], featured: false, socials: {}, tags: [], categoryIds: [], boothIds, boothLabels: boothIds };
+function exhibitor(id: string, name: string, boothIds: string[], slug = id): BundleExhibitor {
+  return {
+    id,
+    name,
+    slug,
+    gallery: [],
+    featured: false,
+    logoInBooth: false,
+    socials: {},
+    tags: [],
+    metadata: {},
+    extraIds: [],
+    categoryIds: [],
+    boothIds,
+    boothLabels: boothIds,
+  };
 }
 
 function node(id: string, levelId: string, x: number, y: number): BundleWayNode {
@@ -80,6 +96,7 @@ function makeBundle(init: BundleInit): PlanBundle {
     sessions: [],
     wayfinding: { nodes: init.nodes ?? [], edges: init.edges ?? [], transitions: init.transitions ?? [] },
     banners: [],
+    extras: [],
   };
 }
 
@@ -112,11 +129,31 @@ function crossesBooth(a: Point, b: Point, booth: BundleBooth): boolean {
   return false;
 }
 
-function routeSegments(route: RouteResult): [Point, Point][] {
-  const segs: [Point, Point][] = [];
+function distanceToPolygon(p: Point, poly: Point[]): number {
+  if (pointInPolygon(p, poly)) return 0;
+  let best = Infinity;
+  for (let i = 0; i < poly.length; i++) best = Math.min(best, closestPointOnSegment(p, poly[i], poly[(i + 1) % poly.length]).dist);
+  return best;
+}
+
+/** The route's polyline (walking steps only, consecutive duplicates removed). */
+function routePoints(route: RouteResult): Point[] {
+  const out: Point[] = [];
   for (const step of route.steps) {
-    for (let i = 1; i < step.points.length; i++) segs.push([step.points[i - 1], step.points[i]]);
+    if (step.points.length < 2) continue;
+    for (const p of step.points) {
+      const last = out[out.length - 1];
+      if (last && last[0] === p[0] && last[1] === p[1]) continue;
+      out.push(p);
+    }
   }
+  return out;
+}
+
+function routeSegments(route: RouteResult): [Point, Point][] {
+  const pts = routePoints(route);
+  const segs: [Point, Point][] = [];
+  for (let i = 1; i < pts.length; i++) segs.push([pts[i - 1], pts[i]]);
   return segs;
 }
 
@@ -133,7 +170,7 @@ function hallBundle(): PlanBundle {
   const L = "L1";
   const booths: BundleBooth[] = [];
   for (let i = 0; i < 8; i++) {
-    booths.push(booth(`A${i + 1}`, L, 10 + i * 5, 10, 5, 6));
+    booths.push(booth(`A${i + 1}`, L, 10 + i * 5, 10, 5, 6, { externalId: `ext-A${i + 1}` }));
     booths.push(booth(`B${i + 1}`, L, 10 + i * 5, 24, 5, 6));
   }
   const nodes = [
@@ -149,7 +186,7 @@ function hallBundle(): PlanBundle {
   return makeBundle({
     levels: [level(L, "Level 1", 60, 40)],
     booths,
-    exhibitors: [exhibitor("ex1", "Acme Corp", ["B6"])],
+    exhibitors: [exhibitor("ex1", "Acme Corp", ["B6"], "acme-corp")],
     nodes,
     edges,
   });
@@ -165,15 +202,17 @@ describe("findRoute in a synthetic hall", () => {
     expect(route.distanceM).toBeCloseTo(39, 1);
     expect(route.durationSeconds).toBe(Math.round(39 / 1.4));
     expect(route.levelIds).toEqual(["L1"]);
-    expect(route.steps[0].instruction).toBe("Head along the aisle");
-    expect(route.steps[route.steps.length - 1].instruction).toBe("Arrive at Booth B6");
+    expect(route.accessible).toBe(false);
+    expect(route.steps.map((s) => s.instruction)).toEqual(["Head along the aisle", "Turn left", "Turn right", "Arrive at Booth B6"]);
 
     const others = bundle.booths.filter((b) => b.id !== "A1" && b.id !== "B6");
     for (const [a, b] of routeSegments(route)) {
       for (const other of others) expect(crossesBooth(a, b, other), `segment ${a}-${b} crosses ${other.id}`).toBe(false);
     }
     // Every interior vertex lies on the network (the middle aisle at y = 20).
-    const pts = route.steps.flatMap((s) => s.points);
+    const pts = routePoints(route);
+    expect(pts[0]).toEqual([12.5, 13]);
+    expect(pts[pts.length - 1]).toEqual([37.5, 27]);
     for (const p of pts.slice(1, -1)) expect(p[1]).toBeCloseTo(20, 6);
   });
 
@@ -181,6 +220,11 @@ describe("findRoute in a synthetic hall", () => {
     const route = expectOk(findRoute(bundle, graph, { type: "booth", id: "A1" }, { type: "booth", id: "A8" }));
     // Straight line would be 35 m through the row; the network goes via the middle aisle: 7 + 35 + 7.
     expect(route.distanceM).toBeCloseTo(49, 1);
+    for (const [a, b] of routeSegments(route)) {
+      for (const other of bundle.booths.filter((x) => x.id !== "A1" && x.id !== "A8")) {
+        expect(crossesBooth(a, b, other), `segment ${a}-${b} crosses ${other.id}`).toBe(false);
+      }
+    }
   });
 
   it("resolves exhibitor endpoints to their first booth and names them on arrival", () => {
@@ -191,6 +235,30 @@ describe("findRoute in a synthetic hall", () => {
     const route = expectOk(findRoute(bundle, graph, pt("L1", 5, 5), { type: "exhibitor", id: "ex1" }));
     expect(route.steps[route.steps.length - 1].instruction).toBe("Arrive at Acme Corp");
     expect(resolveEndpoint(bundle, { type: "booth", id: "nope" })).toBeNull();
+    expect(resolveEndpoint(bundle, { type: "exhibitor", id: "nope" })).toBeNull();
+  });
+
+  it("accepts booth labels / external ids and exhibitor slugs as ids", () => {
+    expect(resolveEndpoint(bundle, { type: "booth", id: "ext-A3" })?.point).toEqual([22.5, 13]);
+    expect(resolveEndpoint(bundle, { type: "booth", id: "b6" })?.point).toEqual([37.5, 27]);
+    expect(resolveEndpoint(bundle, { type: "exhibitor", id: "acme-corp" })?.label).toBe("Acme Corp");
+    const byId = expectOk(findRoute(bundle, graph, { type: "booth", id: "A1" }, { type: "booth", id: "B6" }));
+    const byLabel = expectOk(findRoute(bundle, graph, { type: "booth", id: "ext-A1" }, { type: "exhibitor", id: "acme-corp" }));
+    expect(byLabel.distanceM).toBe(byId.distanceM);
+  });
+
+  it("resolves node and element endpoints", () => {
+    expect(resolveEndpoint(bundle, { type: "node", id: "MR" })).toEqual({ levelId: "L1", point: [55, 20], label: "your destination" });
+    const withElements = makeBundle({
+      levels: [
+        level("L1", "Level 1", 60, 40, [
+          { id: "ent", levelId: "L1", kind: "entrance", geometry: { type: "point", point: [30, 40] }, props: { name: "Main Entrance" }, sortIndex: 0 },
+          { id: "stage", levelId: "L1", kind: "stage", geometry: { type: "polygon", points: [[0, 0], [10, 0], [10, 10], [0, 10]] }, props: { name: "Stage" }, sortIndex: 1 },
+        ]),
+      ],
+    });
+    expect(resolveEndpoint(withElements, { type: "element", id: "ent" })).toEqual({ levelId: "L1", point: [30, 40], label: "Main Entrance" });
+    expect(resolveEndpoint(withElements, { type: "element", id: "stage" })).toEqual({ levelId: "L1", point: [5, 5], label: "Stage" });
   });
 
   it("generates turn instructions with correct handedness (y down)", () => {
@@ -214,6 +282,7 @@ describe("findRoute in a synthetic hall", () => {
   it("returns errors for unknown endpoints and levels without a network", () => {
     const err = findRoute(bundle, graph, { type: "booth", id: "missing" }, { type: "booth", id: "A1" });
     expect(err.ok).toBe(false);
+    if (!err.ok) expect(err.error).toMatch(/Unknown start/);
     const noNet = makeBundle({ levels: [level("L9", "Empty", 10, 10)] });
     const r = findRoute(noNet, buildGraph(noNet), pt("L9", 1, 1), pt("L9", 5, 5));
     expect(r.ok).toBe(false);
@@ -223,8 +292,35 @@ describe("findRoute in a synthetic hall", () => {
   it("returns a zero-length route when start and destination coincide", () => {
     const route = expectOk(findRoute(bundle, graph, { type: "booth", id: "A1" }, { type: "booth", id: "A1" }));
     expect(route.distanceM).toBe(0);
+    expect(route.durationSeconds).toBe(0);
     expect(route.steps).toHaveLength(1);
     expect(route.steps[0].instruction).toBe("Arrive at Booth A1");
+  });
+
+  it("visits via waypoints in order", () => {
+    const direct = expectOk(findRoute(bundle, graph, { type: "booth", id: "A1" }, { type: "booth", id: "A2" }));
+    const detour = expectOk(findRoute(bundle, graph, { type: "booth", id: "A1" }, { type: "booth", id: "A2" }, { via: [{ type: "booth", id: "B6" }] }));
+    expect(detour.distanceM).toBeGreaterThan(direct.distanceM);
+    // A1 -> B6 (39 m) + B6 -> A2 (7 + 20 + 7 = 34 m)
+    expect(detour.distanceM).toBeCloseTo(73, 1);
+    const instructions = detour.steps.map((s) => s.instruction);
+    expect(instructions).toContain("Stop at Booth B6");
+    expect(instructions.indexOf("Stop at Booth B6")).toBeLessThan(instructions.indexOf("Arrive at Booth A2"));
+    expect(instructions[instructions.length - 1]).toBe("Arrive at Booth A2");
+    const pts = routePoints(detour);
+    expect(pts.some((p) => p[0] === 37.5 && p[1] === 27)).toBe(true);
+    expect(detour.from).toEqual({ type: "booth", id: "A1" });
+    expect(detour.to).toEqual({ type: "booth", id: "A2" });
+
+    const two = expectOk(findRoute(bundle, graph, pt("L1", 5, 5), pt("L1", 5, 5), { via: [pt("L1", 55, 5), pt("L1", 55, 35)] }));
+    expect(two.distanceM).toBeCloseTo(50 + 30 + 80, 6);
+    expect(two.steps.filter((s) => s.instruction?.startsWith("Stop at"))).toHaveLength(2);
+
+    const tooMany = findRoute(bundle, graph, pt("L1", 5, 5), pt("L1", 55, 5), { via: Array.from({ length: 9 }, () => pt("L1", 30, 20)) });
+    expect(tooMany.ok).toBe(false);
+    const badVia = findRoute(bundle, graph, pt("L1", 5, 5), pt("L1", 55, 5), { via: [{ type: "booth", id: "nope" }] });
+    expect(badVia.ok).toBe(false);
+    if (!badVia.ok) expect(badVia.error).toMatch(/via point 1/);
   });
 });
 
@@ -262,7 +358,7 @@ describe("accessible routing", () => {
     expect(normal.distanceM).toBeCloseTo(22, 6);
     const acc = expectOk(findRoute(bundle, graph, pt(L, 5, -1), pt(L, 25, -1), { accessible: true }));
     expect(acc.distanceM).toBeCloseTo(6 + 20 + 6, 6);
-    for (const p of acc.steps.flatMap((s) => s.points).slice(1, -1)) expect(p[1]).toBeCloseTo(5, 6);
+    for (const p of routePoints(acc).slice(1, -1)) expect(p[1]).toBeCloseTo(5, 6);
   });
 });
 
@@ -320,10 +416,12 @@ describe("multi-level routing", () => {
     const lift = g.edges.find((e) => e.transition?.id === "lift-1");
     expect(lift?.cost).toBeCloseTo(30 * 1.4, 6);
     expect(lift?.length).toBe(0);
+    expect(g.stats.transitionCount).toBe(2);
     const a1 = g.nodeIndexById.get("a1") as number;
     const b1 = g.nodeIndexById.get("b1") as number;
     const res = astar(g, a1, b1);
     expect(res?.cost).toBeCloseTo(20 + 14 + 20, 6);
+    expect(astar(g, a1, b1, { accessible: true })?.cost).toBeCloseTo(40 + 42 + 40, 6);
   });
 });
 
@@ -350,7 +448,12 @@ describe("oneWay edges", () => {
     const along = expectOk(findRoute(bundle, graph, pt(L, 2, 0.5), pt(L, 8, 0.5)));
     expect(along.distanceM).toBeCloseTo(0.5 + 6 + 0.5, 6);
     const against = expectOk(findRoute(bundle, graph, pt(L, 8, 0.5), pt(L, 2, 0.5)));
-    expect(against.distanceM).toBeCloseTo(0.5 + 2 + detour + 2 + 0.5, 1);
+    // Cannot walk west along A-B: must go round via C.
+    expect(against.distanceM).toBeGreaterThan(20);
+    expect(routePoints(against).some((p) => p[1] >= 9.9)).toBe(true);
+    for (const [a, b] of routeSegments(against)) {
+      if (Math.abs(a[1]) < 1e-6 && Math.abs(b[1]) < 1e-6) expect(b[0]).toBeGreaterThanOrEqual(a[0]);
+    }
   });
 });
 
@@ -372,7 +475,7 @@ describe("optimizeRoute", () => {
     pt(L, 12, 40),
   ];
 
-  function naiveTotal(seq: RouteEndpoint[], closed = false): number {
+  function tourDistance(seq: RouteEndpoint[], closed = false): number {
     let total = 0;
     const all = closed ? [...seq, start] : seq;
     let prev = start;
@@ -383,6 +486,19 @@ describe("optimizeRoute", () => {
     return total;
   }
 
+  function bruteForceBest(items: RouteEndpoint[], closed: boolean): number {
+    let best = Infinity;
+    const permute = (rest: RouteEndpoint[], acc: RouteEndpoint[]) => {
+      if (rest.length === 0) {
+        best = Math.min(best, tourDistance(acc, closed));
+        return;
+      }
+      for (let i = 0; i < rest.length; i++) permute([...rest.slice(0, i), ...rest.slice(i + 1)], [...acc, rest[i]]);
+    };
+    permute(items, []);
+    return best;
+  }
+
   it("visits every stop once with a total no worse than the given order", () => {
     const res = optimizeRoute(bundle, graph, start, stops);
     if (!("order" in res)) throw new Error(res.error);
@@ -391,11 +507,13 @@ describe("optimizeRoute", () => {
     expect(res.legs).toHaveLength(stops.length);
     expect(res.legs[0].from).toEqual(start);
     res.legs.forEach((leg, i) => expect(leg.to).toEqual(res.order[i]));
-    expect(res.distanceM).toBeLessThanOrEqual(naiveTotal(stops) + 1e-6);
     expect(res.distanceM).toBeCloseTo(res.legs.reduce((s, l) => s + l.distanceM, 0), 6);
-    // The optimal open tour here: (0,0) -> (12,40)... is 130 m long; the scrambled input order is much worse.
-    expect(res.distanceM).toBeLessThan(naiveTotal(stops));
-    expect(res.distanceM).toBeCloseTo(130, 6);
+    expect(res.durationSeconds).toBe(Math.round(res.legs.reduce((s, l) => s + l.durationSeconds, 0)));
+    const naive = tourDistance(stops);
+    expect(res.distanceM).toBeLessThanOrEqual(naive + 1e-6);
+    expect(res.distanceM).toBeLessThan(naive);
+    // With five stops the exact optimum is cheap to enumerate.
+    expect(res.distanceM).toBeCloseTo(bruteForceBest(stops, false), 6);
   });
 
   it("adds a closing leg when returnToStart is set", () => {
@@ -403,7 +521,8 @@ describe("optimizeRoute", () => {
     if (!("order" in res)) throw new Error(res.error);
     expect(res.legs).toHaveLength(stops.length + 1);
     expect(res.legs[res.legs.length - 1].to).toEqual(start);
-    expect(res.distanceM).toBeLessThanOrEqual(naiveTotal(stops, true) + 1e-6);
+    expect(res.distanceM).toBeLessThanOrEqual(tourDistance(stops, true) + 1e-6);
+    expect(res.distanceM).toBeCloseTo(bruteForceBest(stops, true), 6);
   });
 
   it("rejects unreachable stops and too many stops", () => {
@@ -414,6 +533,16 @@ describe("optimizeRoute", () => {
     expect("ok" in tooMany && tooMany.ok === false).toBe(true);
     const none = optimizeRoute(bundle, graph, start, []);
     expect("order" in none && none.order.length === 0).toBe(true);
+  });
+
+  it("prefers avoiding a slow lift when ordering multi-level stops", () => {
+    const two = twoLevelBundle();
+    const g = buildGraph(two);
+    const res = optimizeRoute(two, g, { type: "node", id: "a1" }, [{ type: "node", id: "b1" }, { type: "node", id: "a3" }], { accessible: true });
+    if (!("order" in res)) throw new Error(res.error);
+    // Going a1 -> a3 -> (lift) -> b3 -> b1 rides the lift once; a1 -> b1 first would ride it twice.
+    expect(res.order.map(endpointKey)).toEqual(["node:a3", "node:b1"]);
+    expect(res.legs.filter((l) => l.steps.some((s) => s.transition)).length).toBe(1);
   });
 });
 
@@ -456,10 +585,16 @@ describe("generateWayfindingGraph", () => {
     expect(auto.nodes[0].id).toMatch(/^auto_L1_\d+_\d+$/);
     const again = generateWayfindingGraph(lvl, block);
     expect(again.nodes.map((n) => n.id)).toEqual(auto.nodes.map((n) => n.id));
-    // No node inside the booth block inflated by the 0.6 m clearance.
+    expect(again.edges.map((e) => e.id)).toEqual(auto.edges.map((e) => e.id));
+    // No node inside a booth or within the 0.6 m clearance of one.
     for (const n of auto.nodes) {
-      expect(n.x > 14.4 && n.x < 25.6 && n.y > 9.4 && n.y < 20.6, `node ${n.id} is inside the block`).toBe(false);
+      for (const b of block) expect(distanceToPolygon([n.x, n.y], b.polygon), `node ${n.id} is too close to ${b.id}`).toBeGreaterThan(0.6);
     }
+    // The network surrounds the block (nodes on all four sides).
+    expect(auto.nodes.some((n) => n.x < 14 && n.y > 10 && n.y < 20)).toBe(true);
+    expect(auto.nodes.some((n) => n.x > 26 && n.y > 10 && n.y < 20)).toBe(true);
+    expect(auto.nodes.some((n) => n.y < 9 && n.x > 15 && n.x < 25)).toBe(true);
+    expect(auto.nodes.some((n) => n.y > 21 && n.x > 15 && n.x < 25)).toBe(true);
     // All referenced nodes exist and ids are unique.
     const ids = new Set(auto.nodes.map((n) => n.id));
     expect(ids.size).toBe(auto.nodes.length);
@@ -468,15 +603,18 @@ describe("generateWayfindingGraph", () => {
       expect(ids.has(e.to)).toBe(true);
     }
     expect(new Set(auto.edges.map((e) => e.id)).size).toBe(auto.edges.length);
+    // Default bounds: booth bbox padded by 6 m, clipped to the level.
+    expect(auto.stats.cols).toBe(22);
+    expect(auto.stats.rows).toBe(22);
   });
 
   it("routes between two points on opposite sides of the block", () => {
     const auto = generateWayfindingGraph(lvl, block);
     const bundle = makeBundle({ levels: [lvl], booths: block, nodes: auto.nodes, edges: auto.edges });
     const graph = buildGraph(bundle);
-    const route = expectOk(findRoute(bundle, graph, pt(L, 5, 15), pt(L, 35, 15)));
-    expect(route.distanceM).toBeGreaterThan(30);
-    expect(route.distanceM).toBeLessThan(45);
+    const route = expectOk(findRoute(bundle, graph, pt(L, 10, 15), pt(L, 30, 15)));
+    expect(route.distanceM).toBeGreaterThan(20);
+    expect(route.distanceM).toBeLessThan(35);
     for (const [a, b] of routeSegments(route)) {
       for (const bo of block) expect(crossesBooth(a, b, bo), `segment ${a}-${b} crosses ${bo.id}`).toBe(false);
     }
@@ -506,8 +644,28 @@ describe("generateWayfindingGraph", () => {
     const bundle = makeBundle({ levels: [walled], nodes: auto.nodes, edges: auto.edges });
     const route = expectOk(findRoute(bundle, buildGraph(bundle), pt(L, 10, 5), pt(L, 30, 5)));
     // Must go around the bottom of the wall (y > 22) instead of straight across (20 m).
-    expect(route.distanceM).toBeGreaterThan(50);
-    expect(route.steps.flatMap((s) => s.points).some((p) => p[1] > 22)).toBe(true);
+    expect(route.distanceM).toBeGreaterThan(2 * Math.hypot(10, 18));
+    expect(routePoints(route).some((p) => p[1] > 22)).toBe(true);
+    for (const [a, b] of routeSegments(route)) {
+      expect(segmentsIntersect(a, b, [20, 0], [20, 22]), `segment ${a}-${b} crosses the wall`).toBe(false);
+    }
+  });
+
+  it("blocks rooms and stages but not zones marked walkable", () => {
+    const room: BundleElement = {
+      id: "r1",
+      levelId: L,
+      kind: "room",
+      geometry: { type: "polygon", points: [[10, 10], [30, 10], [30, 20], [10, 20]] },
+      props: {},
+      sortIndex: 0,
+    };
+    const withRoom = level(L, "Level 1", 40, 30, [room]);
+    const auto = generateWayfindingGraph(withRoom, []);
+    expect(auto.nodes.some((n) => n.x > 11 && n.x < 29 && n.y > 11 && n.y < 19)).toBe(false);
+    const walkable = level(L, "Level 1", 40, 30, [{ ...room, props: { blocksRouting: false } }]);
+    const open = generateWayfindingGraph(walkable, []);
+    expect(open.nodes.some((n) => n.x > 11 && n.x < 29 && n.y > 11 && n.y < 19)).toBe(true);
   });
 
   it("keeps the output size sane for a 200x150 m hall", () => {
@@ -564,7 +722,8 @@ describe("performance", () => {
     const t1 = performance.now();
     const snapped = expectOk(findRoute(bundle, graph, pt(L, 0.5, 0.5), pt(L, 298.5, 198.5)));
     const snapMs = performance.now() - t1;
-    expect(snapped.distanceM).toBeCloseTo(299 + 199, 6);
+    // 0.5 m onto the lattice at each end, then 297 + 197 m along it.
+    expect(snapped.distanceM).toBeCloseTo(0.5 + 0.5 + 297 + 197 + 0.5 + 0.5, 6);
     expect(snapMs).toBeLessThan(100);
     expect(buildMs).toBeLessThan(2000);
   });
