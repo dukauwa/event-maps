@@ -52,10 +52,15 @@ export function userFromSessionToken(token: string | undefined): AuthUser | null
   return { id, orgId, email, name, role };
 }
 
+/** `cookies()` throws outside a request scope (scripts, tests); treat that as "no cookies". */
+async function safeCookies() {
+  try { return await cookies(); } catch { return null; }
+}
+
 /** Current organiser user from the session cookie (server components / route handlers). */
 export async function currentUser(): Promise<AuthUser | null> {
-  const jar = await cookies();
-  return userFromSessionToken(jar.get(SESSION_COOKIE)?.value);
+  const jar = await safeCookies();
+  return userFromSessionToken(jar?.get(SESSION_COOKIE)?.value);
 }
 
 export async function requireUser(): Promise<AuthUser> {
@@ -101,23 +106,28 @@ export async function apiPrincipal(req: Request): Promise<ApiPrincipal | null> {
   const url = new URL(req.url);
   const raw = bearer || req.headers.get("x-api-key") || url.searchParams.get("api_key");
   if (raw) return principalFromApiKey(raw);
-  const jar = await cookies();
-  const user = userFromSessionToken(jar.get(SESSION_COOKIE)?.value);
+  const jar = await safeCookies();
+  const user = userFromSessionToken(jar?.get(SESSION_COOKIE)?.value);
   if (user) return { kind: "user", orgId: user.orgId, scopes: ["read", "write", "admin"], userId: user.id };
   return null;
 }
 
 /** Exhibitor portal principal, from the magic-link cookie. */
 export async function currentExhibitor() {
-  const jar = await cookies();
-  const token = jar.get(EXHIBITOR_COOKIE)?.value;
+  const jar = await safeCookies();
+  const token = jar?.get(EXHIBITOR_COOKIE)?.value;
   if (!token) return null;
   return db().select().from(schema.exhibitors).where(eq(schema.exhibitors.portalToken, token)).get() ?? null;
 }
 
 export async function requestOrigin(): Promise<string> {
-  const h = await headers();
-  const proto = h.get("x-forwarded-proto") ?? "http";
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
-  return process.env.APP_URL || `${proto}://${host}`;
+  if (process.env.APP_URL) return process.env.APP_URL;
+  try {
+    const h = await headers();
+    const proto = h.get("x-forwarded-proto") ?? "http";
+    const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
+    return `${proto}://${host}`;
+  } catch {
+    return "http://localhost:3000";
+  }
 }
