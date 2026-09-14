@@ -8,6 +8,7 @@ import { emitWebhook } from "./webhooks";
 import { getBooth, releaseExpiredHolds, setBoothStatus, assignExhibitor } from "./booths";
 import { listPricingRules } from "./pricing-rules";
 import { createExhibitor, getExhibitor } from "./exhibitors";
+import { assignExtra, getExtra } from "./extras";
 import type { Event, Order } from "@/lib/db/schema";
 
 export const reserveInput = z.object({
@@ -59,13 +60,24 @@ export function reserveBooth(ev: Event, input: ReserveInput, origin: string): { 
     exhibitorId = existing?.id ?? createExhibitor(ev, { name: input.company, email: input.contactEmail, contactName: input.contactName }).id;
   }
 
+  // Add-ons: assign to the exhibitor (limits enforced) and add to the order total.
+  let extrasCents = 0;
+  const extraNotes: string[] = [];
+  for (const x of input.extras ?? []) {
+    const extra = getExtra(ev.id, x.extraId);
+    if (!extra || !extra.reserveOrBuyAllowed) continue;
+    assignExtra(ev, exhibitorId, extra.id, x.quantity, booth.id);
+    extrasCents += (extra.priceCents ?? 0) * x.quantity;
+    extraNotes.push(`${x.quantity}× ${extra.name}`);
+  }
   const holdMinutes = ev.settings.sales.holdMinutes || 30;
   const expiresAt = new Date(Date.now() + holdMinutes * 60e3).toISOString();
   const id = newId("or");
   const status = mode === "buy" ? "hold" : mode === "reserve" ? "pending_payment" : "hold";
+  const extrasTax = Math.round((extrasCents * ev.settings.sales.taxPercent) / 100);
   db().insert(schema.orders).values({
-    id, eventId: ev.id, boothId: booth.id, exhibitorId, status, amountCents: price?.priceCents ?? 0, taxCents, currency,
-    provider: ev.settings.sales.provider, expiresAt: mode === "reserve" ? null : expiresAt, company: input.company, contactName: input.contactName, contactEmail: input.contactEmail, notes: input.notes ?? null,
+    id, eventId: ev.id, boothId: booth.id, exhibitorId, status, amountCents: (price?.priceCents ?? 0) + extrasCents, taxCents: taxCents + extrasTax, currency,
+    provider: ev.settings.sales.provider, expiresAt: mode === "reserve" ? null : expiresAt, company: input.company, contactName: input.contactName, contactEmail: input.contactEmail, notes: [input.notes, extraNotes.length ? `Add-ons: ${extraNotes.join(", ")}` : null].filter(Boolean).join("\n") || null,
   }).run();
   if (mode === "reserve") {
     setBoothStatus(ev, booth.id, "reserved");
