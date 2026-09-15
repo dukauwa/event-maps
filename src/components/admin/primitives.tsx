@@ -111,7 +111,7 @@ export function CopyButton({ text, label = "Copy", size = "sm", variant = "outli
   );
 }
 
-export function ConfirmButton({ onConfirm, children, message = "Are you sure?", variant = "danger", size = "sm", className, disabled }: { onConfirm: () => void | Promise<void>; children: React.ReactNode; message?: string; variant?: "danger" | "outline" | "ghost" | "secondary"; size?: "sm" | "md"; className?: string; disabled?: boolean }) {
+export function ConfirmButton({ onConfirm, children, message = "Are you sure?", variant = "danger", size = "sm", className, disabled }: { onConfirm: () => unknown; children: React.ReactNode; message?: string; variant?: "danger" | "outline" | "ghost" | "secondary"; size?: "sm" | "md"; className?: string; disabled?: boolean }) {
   const [arm, setArm] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   React.useEffect(() => { if (!arm) return; const t = setTimeout(() => setArm(false), 4000); return () => clearTimeout(t); }, [arm]);

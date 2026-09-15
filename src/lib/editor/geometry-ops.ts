@@ -137,9 +137,10 @@ export function mergePolygons(polys: Polygon[]): Polygon | null {
     if (!u || u.geometry.type !== "Polygon") return null;
     merged = u;
   }
-  const geom = merged.geometry;
+  const geom = merged.geometry as GjPolygon;
   if (geom.type !== "Polygon") return null;
-  const ring = geom.coordinates[0].slice(0, -1).map(([x, y]) => roundPoint([x, y]));
+  const outer: number[][] = geom.coordinates[0];
+  const ring = outer.slice(0, -1).map(([x, y]) => roundPoint([x, y]));
   return dedupeRing(ring);
 }
 
@@ -167,7 +168,7 @@ export function splitPolygon(poly: Polygon, axis: "h" | "v", at?: number): [Poly
   for (const box of [boxA, boxB]) {
     const clipped = bboxClip(ringOf(poly), box);
     const g = clipped.geometry;
-    const rings = g.type === "Polygon" ? [g.coordinates[0]] : g.coordinates.map((c) => c[0]);
+    const rings: number[][][] = g.type === "Polygon" ? [g.coordinates[0] as number[][]] : (g.coordinates as number[][][][]).map((c) => c[0]);
     const biggest = rings.map((r) => dedupeRing(r.slice(0, -1).map(([x, y]) => roundPoint([x, y])))).filter((r) => r.length >= 3).sort((a, b) => ringArea(b) - ringArea(a))[0];
     if (!biggest || ringArea(biggest) < 1e-6) return null;
     parts.push(biggest);

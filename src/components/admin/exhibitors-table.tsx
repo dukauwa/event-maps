@@ -20,9 +20,9 @@ export interface ExhibitorsEvent { id: string; name: string; terms: { booth: str
 
 const SOCIAL_KEYS = ["linkedin", "x", "facebook", "instagram", "youtube", "tiktok"];
 
-export function ExhibitorsTable({ event, exhibitors, categories, booths, levels, extras }: { event: ExhibitorsEvent; exhibitors: ExhibitorRow[]; categories: CategoryRef[]; booths: BoothRef[]; levels: LevelRef[]; extras: ExtraRef[] }) {
+export function ExhibitorsTable({ event, exhibitors, categories, booths, levels, extras, initialQuery = "" }: { event: ExhibitorsEvent; exhibitors: ExhibitorRow[]; categories: CategoryRef[]; booths: BoothRef[]; levels: LevelRef[]; extras: ExtraRef[]; initialQuery?: string }) {
   const { refresh, pending } = useRefresh();
-  const [q, setQ] = React.useState("");
+  const [q, setQ] = React.useState(initialQuery);
   const [cat, setCat] = React.useState("");
   const [level, setLevel] = React.useState("");
   const [flag, setFlag] = React.useState<"" | "unassigned" | "featured" | "sponsor">("");

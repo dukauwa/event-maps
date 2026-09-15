@@ -514,6 +514,14 @@ export class ViewerController {
     else this.openBooth(b.id, { zoom: false });
   }
 
+  /** Zoom the map to one booth (and select it) without changing the open panel. */
+  focusBooth(id: string): void {
+    const b = this.boothById(id);
+    if (!b) return;
+    this.setState({ levelId: b.levelId, selectedBoothIds: this.state.selectedBoothIds.includes(b.id) ? this.state.selectedBoothIds : [b.id] });
+    this.withMap((m) => m.zoomToBooths([b]));
+  }
+
   openBooth(id: string, opts: { zoom?: boolean } = {}): void {
     const b = this.boothById(id);
     if (!b) return;

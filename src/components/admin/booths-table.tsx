@@ -12,12 +12,12 @@ export interface LevelRef { id: string; name: string; shortName: string }
 export interface ExhibitorRef { id: string; name: string; boothLabels: string[] }
 export interface BoothsEvent { id: string; name: string; currency: string; timezone: string | null; terms: { booth: string; booths: string; exhibitor: string; exhibitors: string; level: string } }
 
-export function BoothsTable({ event, booths, levels, exhibitors }: { event: BoothsEvent; booths: BoothRow[]; levels: LevelRef[]; exhibitors: ExhibitorRef[] }) {
+export function BoothsTable({ event, booths, levels, exhibitors, initialQuery = "" }: { event: BoothsEvent; booths: BoothRow[]; levels: LevelRef[]; exhibitors: ExhibitorRef[]; initialQuery?: string }) {
   const { refresh, pending } = useRefresh();
   const [level, setLevel] = React.useState("");
   const [status, setStatus] = React.useState("");
   const [type, setType] = React.useState("");
-  const [q, setQ] = React.useState("");
+  const [q, setQ] = React.useState(initialQuery);
   const [sel, setSel] = React.useState<Set<string>>(new Set());
   const [edit, setEdit] = React.useState<BoothRow | null>(null);
   const [assign, setAssign] = React.useState<BoothRow | null>(null);

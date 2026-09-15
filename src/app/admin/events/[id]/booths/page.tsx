@@ -9,8 +9,10 @@ import { loadEvent } from "../../../_lib";
 
 export const metadata: Metadata = { title: "Booths" };
 
-export default async function BoothsPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function BoothsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ q?: string | string[] }> }) {
   const { id } = await params;
+  const sp = await searchParams;
+  const initialQuery = (Array.isArray(sp.q) ? sp.q[0] : sp.q) ?? "";
   const { event } = await loadEvent(id);
   const bundle = buildBundle(db(), event.id);
   const price = new Map((bundle?.booths ?? []).map((b) => [b.id, { priceCents: b.priceCents ?? null, currency: b.currency ?? null }]));
@@ -22,5 +24,5 @@ export default async function BoothsPage({ params }: { params: Promise<{ id: str
   const levels = listLevels(event.id).map((l) => ({ id: l.id, name: l.name, shortName: l.shortName }));
   const exhibitors = listExhibitors(event.id).map((e) => ({ id: e.id, name: e.name, boothLabels: e.boothLabels }));
   const t = event.settings.terms;
-  return <BoothsTable event={{ id: event.id, name: event.name, currency: event.settings.sales.currency, timezone: event.timezone, terms: { booth: t.booth, booths: t.booths, exhibitor: t.exhibitor, exhibitors: t.exhibitors, level: t.level } }} booths={booths} levels={levels} exhibitors={exhibitors} />;
+  return <BoothsTable event={{ id: event.id, name: event.name, currency: event.settings.sales.currency, timezone: event.timezone, terms: { booth: t.booth, booths: t.booths, exhibitor: t.exhibitor, exhibitors: t.exhibitors, level: t.level } }} booths={booths} levels={levels} exhibitors={exhibitors} initialQuery={initialQuery} />;
 }

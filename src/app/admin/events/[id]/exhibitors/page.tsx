@@ -9,8 +9,10 @@ import { loadEvent } from "../../../_lib";
 
 export const metadata: Metadata = { title: "Exhibitors" };
 
-export default async function ExhibitorsPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ExhibitorsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ q?: string | string[] }> }) {
   const { id } = await params;
+  const sp = await searchParams;
+  const initialQuery = (Array.isArray(sp.q) ? sp.q[0] : sp.q) ?? "";
   const { event } = await loadEvent(id);
   const exhibitors: ExhibitorRow[] = listExhibitors(event.id).map((e) => ({
     id: e.id, name: e.name, slug: e.slug, externalId: e.externalId, gripId: e.gripId, logoUrl: e.logoUrl, gallery: e.gallery ?? [], description: e.description, website: e.website, email: e.email, phone: e.phone,
@@ -22,6 +24,7 @@ export default async function ExhibitorsPage({ params }: { params: Promise<{ id:
     <ExhibitorsTable
       event={{ id: event.id, name: event.name, terms: { booth: t.booth, booths: t.booths, exhibitor: t.exhibitor, exhibitors: t.exhibitors, level: t.level } }}
       exhibitors={exhibitors}
+      initialQuery={initialQuery}
       categories={listCategories(event.id).map((c) => ({ id: c.id, name: c.name, color: c.color }))}
       booths={listBooths(event.id).map((b) => ({ id: b.id, label: b.label, levelId: b.levelId, status: b.status }))}
       levels={listLevels(event.id).map((l) => ({ id: l.id, name: l.name, shortName: l.shortName }))}
