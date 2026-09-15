@@ -4,12 +4,15 @@ import { eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { newId } from "@/lib/ids";
 import { badRequest } from "@/lib/api/http";
+import { isEphemeralStorage } from "@/lib/db";
 
 const ALLOWED: Record<string, string> = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp", "image/svg+xml": "svg", "image/gif": "gif", "application/pdf": "pdf", "image/x-dxf": "dxf", "application/dxf": "dxf", "text/csv": "csv" };
 const MAX_BYTES = 25 * 1024 * 1024;
 
 export function uploadsDir() {
-  return process.env.UPLOADS_DIR || path.join(process.cwd(), "data", "uploads");
+  if (process.env.UPLOADS_DIR) return process.env.UPLOADS_DIR;
+  if (isEphemeralStorage()) return "/tmp/tessera/uploads";
+  return path.join(process.cwd(), "data", "uploads");
 }
 
 export async function saveUpload(orgId: string, file: File): Promise<{ id: string; url: string; filename: string; mime: string; size: number }> {

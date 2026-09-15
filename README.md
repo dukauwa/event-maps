@@ -44,6 +44,19 @@ pnpm seed:reset     # wipe data/app.db and re-seed
 | `GRIP_API_BASE`, `GRIP_API_KEY` | Grip exhibitor sync (or pass a `sourceUrl` per sync). |
 | `AUTO_SEED=0` | Disable demo seeding on first start. |
 
+## Deploy it
+
+**Vercel (quickest look).** Import the repository at [vercel.com/new](https://vercel.com/new) and deploy with no configuration; the demo event seeds itself on first request. Vercel's filesystem is read-only apart from `/tmp`, so the database lives there and **resets whenever the instance recycles, and separate instances do not share it**. That is fine for clicking through the product, wrong for a shared trial where bookings must stick.
+
+**Docker (persistent).** One container, one SQLite file on a volume. Runs on Fly.io, Railway, Render, or any VM.
+
+```bash
+docker build -t tessera .
+docker run -p 3000:3000 -v tessera-data:/data -e APP_URL=https://your-host tessera
+```
+
+Set `APP_URL` on any real deployment so share links, QR codes and checkout redirects point at the right host. See `.env.example` for the rest.
+
 ## Architecture
 
 - **Next.js 16 (App Router), React 19, TypeScript strict, Tailwind 4.** Server components read through `src/lib/services/*`; client components mutate through `/api/v1`.

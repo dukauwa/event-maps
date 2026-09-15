@@ -12,22 +12,33 @@ function autoSeed(d: DB) {
   if (isSeeded(d)) return;
   const r = seedDemo(d);
   publishEvent(d, r.eventId, "Initial publish");
-  console.log(`[tessera] seeded demo data. Organiser login: ${r.adminEmail} / ${r.adminPassword}`);
+  console.log(`[tessera] seeded demo data${isEphemeralStorage() ? " into ephemeral storage (resets when the instance recycles)" : ""}. Organiser login: ${r.adminEmail} / ${r.adminPassword}`);
 }
 
 export type DB = BetterSQLite3Database<typeof schema>;
 
 const globalForDb = globalThis as unknown as { __tesseraDb?: DB; __tesseraSqlite?: Database.Database };
 
+/**
+ * Serverless platforms (Vercel, Lambda) ship a read-only filesystem with only /tmp writable,
+ * and /tmp is wiped whenever the instance recycles. Good enough to demo; not for real data.
+ */
+export function isEphemeralStorage(): boolean {
+  return !process.env.DATABASE_PATH && !!(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.NETLIFY);
+}
+
 export function getDbPath(): string {
-  return process.env.DATABASE_PATH || path.join(process.cwd(), "data", "app.db");
+  if (process.env.DATABASE_PATH) return process.env.DATABASE_PATH;
+  if (isEphemeralStorage()) return "/tmp/tessera/app.db";
+  return path.join(process.cwd(), "data", "app.db");
 }
 
 function open(): DB {
   const dbPath = getDbPath();
   if (dbPath !== ":memory:") fs.mkdirSync(path.dirname(dbPath), { recursive: true });
   const sqlite = new Database(dbPath);
-  sqlite.pragma("journal_mode = WAL");
+  // WAL needs a shared-memory file, which some serverless sandboxes disallow.
+  sqlite.pragma(isEphemeralStorage() ? "journal_mode = MEMORY" : "journal_mode = WAL");
   sqlite.pragma("foreign_keys = ON");
   sqlite.pragma("busy_timeout = 5000");
   const db = drizzle(sqlite, { schema });
