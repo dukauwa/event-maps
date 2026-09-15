@@ -46,7 +46,7 @@ export function AdminShell({ user, orgName, events, children }: { user: ShellUse
   };
 
   const link = (href: string, label: React.ReactNode, active: boolean, extra?: string) => (
-    <Link href={href} className={cn("flex items-center justify-between rounded-lg px-3 py-1.5 text-sm transition-colors", active ? "bg-primary/10 font-medium text-primary" : "text-gray-700 hover:bg-gray-100", extra)}>
+    <Link key={href} href={href} className={cn("flex items-center justify-between rounded-lg px-3 py-1.5 text-sm transition-colors", active ? "bg-primary/10 font-medium text-primary" : "text-gray-700 hover:bg-gray-100", extra)}>
       {label}
     </Link>
   );

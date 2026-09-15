@@ -25,7 +25,12 @@ async function waitFor(url: string, ms = 120000) {
 const failures: string[] = [];
 function watch(page: Page, name: string) {
   page.on("pageerror", (e) => failures.push(`[${name}] pageerror: ${e.message}`));
-  page.on("console", (m) => { if (m.type() === "error" && !/favicon|tiles.openfreemap|ERR_NAME_NOT_RESOLVED|Failed to load resource/.test(m.text())) failures.push(`[${name}] console: ${m.text().slice(0, 200)}`); });
+  page.on("console", (m) => {
+    const text = m.text();
+    if (m.type() !== "error" || /favicon|tiles\.openfreemap|ERR_NAME_NOT_RESOLVED|Failed to load resource/.test(text)) return;
+    // Hydration diffs are truncated to uselessness at 200 chars; keep the whole thing.
+    failures.push(`[${name}] console: ${text.slice(0, /hydrat/i.test(text) ? 4000 : 200)}`);
+  });
 }
 
 async function main() {
