@@ -6,7 +6,7 @@
 import { count } from "drizzle-orm";
 import type { DB } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
-import { newId, secretToken } from "@/lib/ids";
+import { newId, secretToken, withDeterministicIds } from "@/lib/ids";
 import { hashPassword, sha256 } from "@/lib/auth/password";
 import { DEFAULT_SETTINGS, type BoothStatus, type BoothType, type ElementKind, type ElementProps, type EventSettings, type Geometry, type Point, type Polygon, type PoiType, type SponsorLevel } from "@/lib/domain/types";
 import { polygonArea, rectPolygon, round } from "@/lib/domain/geometry";
@@ -203,7 +203,12 @@ export function isSeeded(d: DB): boolean {
   return (r?.n ?? 0) > 0;
 }
 
+/** Seeds the demo event. Ids are deterministic so every instance produces the same database. */
 export function seedDemo(d: DB): SeedResult {
+  return withDeterministicIds(20260914, () => seedDemoInner(d));
+}
+
+function seedDemoInner(d: DB): SeedResult {
   const rng = mulberry32(2026);
   const pick = <T,>(arr: readonly T[]): T => arr[Math.floor(rng() * arr.length)];
 

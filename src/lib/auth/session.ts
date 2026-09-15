@@ -1,5 +1,6 @@
 import { cookies, headers } from "next/headers";
-import { eq, and, gt } from "drizzle-orm";
+import { createHmac, timingSafeEqual } from "node:crypto";
+import { eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { BRAND } from "@/lib/brand";
 import { secretToken } from "@/lib/ids";
@@ -17,38 +18,73 @@ export interface AuthUser {
   role: "owner" | "admin" | "editor" | "viewer";
 }
 
+/**
+ * Sessions are a signed cookie rather than a database row. A row would tie the session to whichever
+ * process wrote it, which breaks on any host that runs more than one instance (a serverless deployment
+ * signs you in on one instance and rejects you on the next). The cookie carries the user id and an
+ * expiry, signed with AUTH_SECRET.
+ */
+function authSecret(): string {
+  const secret = process.env.AUTH_SECRET || process.env.SESSION_SECRET;
+  if (secret) return secret;
+  if (process.env.NODE_ENV === "production" && !warnedAboutSecret) {
+    warnedAboutSecret = true;
+    console.warn("[tessera] AUTH_SECRET is not set; using the built-in demo key. Set AUTH_SECRET before putting this in front of real users.");
+  }
+  return "tessera-demo-signing-key";
+}
+let warnedAboutSecret = false;
+
+function signSession(body: string): string {
+  return createHmac("sha256", authSecret()).update(body).digest("base64url");
+}
+
+function issueSessionToken(userId: string, expiresAtMs: number): string {
+  const body = `${userId}.${expiresAtMs}`;
+  return `${body}.${signSession(body)}`;
+}
+
+/** Returns the user id when the signature and expiry check out. */
+function readSessionToken(token: string): string | null {
+  const at = token.lastIndexOf(".");
+  if (at < 0) return null;
+  const body = token.slice(0, at);
+  const given = Buffer.from(token.slice(at + 1), "base64url");
+  const expected = Buffer.from(signSession(body), "base64url");
+  if (given.length !== expected.length || !timingSafeEqual(given, expected)) return null;
+  const dot = body.lastIndexOf(".");
+  const userId = body.slice(0, dot);
+  const expiresAt = Number(body.slice(dot + 1));
+  if (!userId || !Number.isFinite(expiresAt) || expiresAt < Date.now()) return null;
+  return userId;
+}
+
 export async function createUserSession(userId: string): Promise<string> {
-  const token = secretToken(48);
-  const expiresAt = new Date(Date.now() + SESSION_DAYS * 86400e3).toISOString();
-  db().insert(schema.userSessions).values({ token, userId, expiresAt }).run();
+  const expiresAtMs = Date.now() + SESSION_DAYS * 86400e3;
+  const token = issueSessionToken(userId, expiresAtMs);
   const jar = await cookies();
   jar.set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    expires: new Date(expiresAt),
+    expires: new Date(expiresAtMs),
   });
   return token;
 }
 
 export async function destroyUserSession(): Promise<void> {
   const jar = await cookies();
-  const token = jar.get(SESSION_COOKIE)?.value;
-  if (token) db().delete(schema.userSessions).where(eq(schema.userSessions.token, token)).run();
   jar.delete(SESSION_COOKIE);
 }
 
 export function userFromSessionToken(token: string | undefined): AuthUser | null {
   if (!token) return null;
-  const row = db()
-    .select({ user: schema.users })
-    .from(schema.userSessions)
-    .innerJoin(schema.users, eq(schema.users.id, schema.userSessions.userId))
-    .where(and(eq(schema.userSessions.token, token), gt(schema.userSessions.expiresAt, new Date().toISOString())))
-    .get();
-  if (!row) return null;
-  const { id, orgId, email, name, role } = row.user;
+  const userId = readSessionToken(token);
+  if (!userId) return null;
+  const user = db().select().from(schema.users).where(eq(schema.users.id, userId)).get();
+  if (!user) return null;
+  const { id, orgId, email, name, role } = user;
   return { id, orgId, email, name, role };
 }
 

@@ -40,13 +40,14 @@ pnpm seed:reset     # wipe data/app.db and re-seed
 | `DATABASE_PATH` | SQLite file (default `./data/app.db`). |
 | `UPLOADS_DIR` | Media uploads (default `./data/uploads`). |
 | `APP_URL` | Public origin used in links and checkout redirects. |
+| `AUTH_SECRET` | Signs session cookies. Set it on any shared deployment; the fallback key is public. |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | Enable Stripe Checkout (`provider: stripe` in Sales settings). Webhook URL: `/api/stripe/webhook`. |
 | `GRIP_API_BASE`, `GRIP_API_KEY` | Grip exhibitor sync (or pass a `sourceUrl` per sync). |
 | `AUTO_SEED=0` | Disable demo seeding on first start. |
 
 ## Deploy it
 
-**Vercel (quickest look).** Import the repository at [vercel.com/new](https://vercel.com/new) and deploy with no configuration; the demo event seeds itself on first request. Vercel's filesystem is read-only apart from `/tmp`, so the database lives there and **resets whenever the instance recycles, and separate instances do not share it**. That is fine for clicking through the product, wrong for a shared trial where bookings must stick.
+**Vercel (quickest look).** Import the repository at [vercel.com/new](https://vercel.com/new) and deploy with no configuration; the demo event seeds itself on first request. Vercel's filesystem is read-only apart from `/tmp`, so the database lives there. The demo seeds itself identically on every instance, and sessions are signed cookies rather than database rows, so signing in and sharing links work across instances. What does not survive is **writes**: a booth you reserve disappears when that instance recycles. Good for clicking through the product, wrong for a shared trial where bookings must stick.
 
 **Docker (persistent).** One container, one SQLite file on a volume. Runs on Fly.io, Railway, Render, or any VM.
 
