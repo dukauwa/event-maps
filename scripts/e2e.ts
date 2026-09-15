@@ -137,4 +137,6 @@ async function main() {
   if (failures.length) { console.error("\nFAILURES:\n" + failures.join("\n")); process.exit(1); }
   console.log(`\nAll smoke checks passed. Screenshots in ${out}`);
 }
-main().catch((e) => { console.error(e); process.exit(1); });
+// The dev server's process group can keep the event loop alive after SIGTERM, so exit explicitly
+// rather than letting a CI timeout decide the exit code.
+main().then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1); });
