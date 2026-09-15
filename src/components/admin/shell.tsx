@@ -30,7 +30,8 @@ export function AdminShell({ user, orgName, events, children }: { user: ShellUse
   const eventId = m?.[1];
   const event = events.find((e) => e.id === eventId);
   const current = m?.[2] ?? "";
-  React.useEffect(() => setOpen(false), [pathname]);
+  const [prevPath, setPrevPath] = React.useState(pathname);
+  if (pathname !== prevPath) { setPrevPath(pathname); setOpen(false); }
 
   const signOut = async () => {
     setSigningOut(true);

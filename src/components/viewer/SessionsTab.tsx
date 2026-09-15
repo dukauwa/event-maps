@@ -2,6 +2,7 @@
 import { useMemo, useState } from "react";
 import { dayKey, formatDay, useT, useViewer, useViewerState } from "./context";
 import { SessionRow } from "./rows";
+import { useNow } from "@/lib/viewer/use-now";
 
 export function SessionsTab() {
   const { locale } = useViewer();
@@ -18,9 +19,9 @@ export function SessionsTab() {
     }
     return [...groups.entries()];
   }, [b, tz]);
-  const todayKey = dayKey(new Date().toISOString(), tz);
+  const now = useNow();
+  const todayKey = dayKey(new Date(now).toISOString(), tz);
   const [day, setDay] = useState<string>(() => days.find(([k]) => k === todayKey)?.[0] ?? days[0]?.[0] ?? "");
-  const now = Date.now();
   const live = b.sessions.filter((se) => Date.parse(se.startsAt) <= now && Date.parse(se.endsAt) >= now);
   const list = nowOnly ? live : days.find(([k]) => k === day)?.[1] ?? [];
   const current = s.panel.kind === "session" ? s.panel.id : null;

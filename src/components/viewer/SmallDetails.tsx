@@ -3,6 +3,7 @@ import type { BundleElement, BundleSession } from "@/lib/domain/types";
 import { formatDay, formatTime, useT, useViewer, useViewerState } from "./context";
 import { Icon } from "./icons";
 import { PanelHeader } from "./rows";
+import { useNow } from "@/lib/viewer/use-now";
 
 export function SessionDetails({ se }: { se: BundleSession }) {
   const { controller, locale } = useViewer();
@@ -12,7 +13,7 @@ export function SessionDetails({ se }: { se: BundleSession }) {
   const where = controller.sessionLocationName(se);
   const bookmarked = controller.isBookmarked("session", se.id);
   const ep = se.boothId ? { type: "booth" as const, id: se.boothId } : se.elementId ? { type: "element" as const, id: se.elementId } : null;
-  const now = Date.now();
+  const now = useNow();
   const live = Date.parse(se.startsAt) <= now && Date.parse(se.endsAt) >= now;
   return (
     <div className="flex flex-col flex-1 min-h-0">

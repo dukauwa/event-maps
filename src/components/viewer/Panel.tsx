@@ -26,13 +26,10 @@ export function Panel() {
   const drag = useRef<{ startY: number; startT: number; moved: boolean } | null>(null);
   const panelKind = s.panel.kind;
 
-  // Sheet position follows the controller's intent.
-  useEffect(() => {
-    if (!isMobile) return;
-    if (!s.panelOpen) setSheet("peek");
-    else if (panelKind !== "list") setSheet("half");
-    else if (s.searchFocused) setSheet("full");
-  }, [s.panelOpen, panelKind, s.searchFocused, isMobile]);
+  // Sheet position follows the controller's intent (adjusted during render when the intent changes).
+  const intent: Sheet | null = !isMobile ? null : !s.panelOpen ? "peek" : panelKind !== "list" ? "half" : s.searchFocused ? "full" : null;
+  const [prevIntent, setPrevIntent] = useState<Sheet | null>(intent);
+  if (intent !== prevIntent) { setPrevIntent(intent); if (intent) setSheet(intent); }
 
   // Focus management: move focus into a freshly opened details panel.
   useEffect(() => {

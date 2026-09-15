@@ -65,7 +65,11 @@ function NewEventDialog({ open, onClose, onCreated }: { open: boolean; onClose: 
   const [busy, setBusy] = React.useState(false);
   const tzs = React.useMemo(() => timezoneOptions(), []);
   const set = (k: keyof typeof f, v: string) => setF((s) => ({ ...s, [k]: v, ...(k === "name" && !slugTouched ? { slug: slugify(v) } : {}) }));
-  React.useEffect(() => { if (open) { setF({ name: "", slug: "", startsAt: "", endsAt: "", timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC", venueName: "", venueAddress: "", lat: "", lng: "", currency: "USD" }); setSlugTouched(false); } }, [open]);
+  const [prevOpen, setPrevOpen] = React.useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (open) { setF({ name: "", slug: "", startsAt: "", endsAt: "", timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC", venueName: "", venueAddress: "", lat: "", lng: "", currency: "USD" }); setSlugTouched(false); }
+  }
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
@@ -113,12 +117,15 @@ function DuplicateDialog({ source, onClose, onCreated }: { source: EventCard | n
   const [slug, setSlug] = React.useState("");
   const [withEx, setWithEx] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
-  React.useEffect(() => {
-    if (!source) return;
-    const m = source.name.match(/(\d{4})/);
-    const next = m ? source.name.replace(m[1], String(Number(m[1]) + 1)) : `${source.name} (copy)`;
-    setName(next); setSlug(slugify(next)); setWithEx(false);
-  }, [source]);
+  const [prevSource, setPrevSource] = React.useState<typeof source>(null);
+  if (source !== prevSource) {
+    setPrevSource(source);
+    if (source) {
+      const m = source.name.match(/(\d{4})/);
+      const next = m ? source.name.replace(m[1], String(Number(m[1]) + 1)) : `${source.name} (copy)`;
+      setName(next); setSlug(slugify(next)); setWithEx(false);
+    }
+  }
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!source) return;

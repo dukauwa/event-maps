@@ -49,6 +49,8 @@ export function FloorPlanViewer({ bundle, params, slug, preview }: FloorPlanView
     const analytics = createAnalytics({ slug, consent: params.consent });
     const c = new ViewerController({ bundle, params, slug, analytics, browserLanguages: navigator.languages, isEmbedded: embedded });
     const bridge = attachEmbedBridge(c, { allowedOrigins: bundle.event.settings.embed.allowedOrigins, force: params.embed === "1" });
+    // Mount-only initialisation of a browser-only controller (needs navigator/window); a cascading render here is intended.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setController(c);
     return () => { bridge.destroy(); c.destroy(); analytics.destroy(); };
     // Constructed once per page load; the bundle prop only changes through the version poller (controller.setBundle).

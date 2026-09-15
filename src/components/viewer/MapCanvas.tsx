@@ -1,7 +1,9 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { PlanMap } from "@/lib/map/plan-map";
 import { useT, useViewer, useViewerState } from "./context";
+
+const noopSubscribe = () => () => {};
 
 /** Mounts the MapLibre map and binds it to the controller. Rendered once; the controller drives it afterwards. */
 export function MapCanvas() {
@@ -9,14 +11,12 @@ export function MapCanvas() {
   const s = useViewerState();
   const t = useT();
   const ref = useRef<HTMLDivElement>(null);
-  const [webgl, setWebgl] = useState<boolean | null>(null);
+  const webgl = useSyncExternalStore(noopSubscribe, () => PlanMap.supportsWebGL(), () => null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const el = ref.current;
-    if (!el) return;
-    if (!PlanMap.supportsWebGL()) { setWebgl(false); return; }
-    setWebgl(true);
+    if (!el || !PlanMap.supportsWebGL()) return;
     const st = controller.snapshot();
     const b = st.bundle;
     const branding = b.event.settings.branding;

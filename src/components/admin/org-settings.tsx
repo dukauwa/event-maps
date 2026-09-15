@@ -165,11 +165,12 @@ function DeliveriesDrawer({ webhook, onClose }: { webhook: WebhookRow; onClose: 
   const [rows, setRows] = React.useState<DeliveryRow[] | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [openId, setOpenId] = React.useState<string | null>(null);
-  const load = React.useCallback(() => { setRows(null); api<DeliveryRow[]>(`/api/v1/webhooks/${webhook.id}/deliveries`).then(setRows).catch((e) => setError(e instanceof Error ? e.message : "Failed to load")); }, [webhook.id]);
-  React.useEffect(() => { load(); }, [load]);
+  const load = React.useCallback(() => api<DeliveryRow[]>(`/api/v1/webhooks/${webhook.id}/deliveries`).then(setRows).catch((e) => setError(e instanceof Error ? e.message : "Failed to load")), [webhook.id]);
+  React.useEffect(() => { void load(); }, [load]);
+  const reload = () => { setRows(null); void load(); };
   const tone = { success: "green", failed: "red", pending: "yellow" } as const;
   return (
-    <Drawer open onClose={onClose} title={<span className="truncate">Deliveries · <code className="font-mono text-xs">{webhook.url}</code></span>} wide footer={<><Button variant="outline" onClick={load}>Reload</Button><Button variant="ghost" onClick={onClose}>Close</Button></>}>
+    <Drawer open onClose={onClose} title={<span className="truncate">Deliveries · <code className="font-mono text-xs">{webhook.url}</code></span>} wide footer={<><Button variant="outline" onClick={reload}>Reload</Button><Button variant="ghost" onClick={onClose}>Close</Button></>}>
       {error ? <Notice tone="error">{error}</Notice> : rows === null ? <p className="text-sm text-gray-500">Loading…</p> : rows.length === 0 ? <EmptyState title="No deliveries yet" hint="Send a test or trigger an event." /> : (
         <ul className="divide-y divide-border rounded-lg border border-border">
           {rows.map((d) => (

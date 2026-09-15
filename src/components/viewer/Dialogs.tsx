@@ -46,7 +46,8 @@ export function Dialogs() {
   const t = useT();
   const [copied, setCopied] = useState(false);
   const d = s.dialog;
-  useEffect(() => { setCopied(false); }, [d]);
+  const [prevDialog, setPrevDialog] = useState(d);
+  if (d !== prevDialog) { setPrevDialog(d); setCopied(false); }
   if (!d) return null;
   const close = () => controller.closeDialog();
 

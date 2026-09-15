@@ -4,6 +4,7 @@ import type { BundleExhibitor, BundleSession, SponsorLevel } from "@/lib/domain/
 import type { SearchResult } from "@/lib/viewer/search";
 import { formatTime, useT, useViewer, useViewerState } from "./context";
 import { Icon } from "./icons";
+import { useNow } from "@/lib/viewer/use-now";
 
 export function SponsorBadge({ level }: { level: SponsorLevel | null | undefined }) {
   const t = useT();
@@ -83,7 +84,7 @@ export function SessionRow({ se, current }: { se: BundleSession; current?: boole
   const s = useViewerState();
   const t = useT();
   const tz = s.bundle.event.timezone;
-  const now = Date.now();
+  const now = useNow();
   const live = Date.parse(se.startsAt) <= now && Date.parse(se.endsAt) >= now;
   const past = Date.parse(se.endsAt) < now;
   const where = controller.sessionLocationName(se);

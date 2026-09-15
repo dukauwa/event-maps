@@ -10,7 +10,8 @@ export function CsvImportDialog({ open, onClose, endpoint, title, columns, sampl
   const [busy, setBusy] = React.useState(false);
   const [result, setResult] = React.useState<ImportResult | null>(null);
   const [error, setError] = React.useState<string | null>(null);
-  React.useEffect(() => { if (open) { setCsv(""); setResult(null); setError(null); } }, [open]);
+  const [prevOpen, setPrevOpen] = React.useState(open);
+  if (open !== prevOpen) { setPrevOpen(open); if (open) { setCsv(""); setResult(null); setError(null); } }
   const submit = async () => {
     setBusy(true); setError(null);
     try {

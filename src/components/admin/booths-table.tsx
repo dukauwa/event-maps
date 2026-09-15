@@ -151,7 +151,11 @@ export function BoothsTable({ event, booths, levels, exhibitors, initialQuery = 
 function EditBoothDialog({ event, booth, levels, onClose, onSaved }: { event: BoothsEvent; booth: BoothRow | null; levels: LevelRef[]; onClose: () => void; onSaved: () => void }) {
   const [f, setF] = React.useState({ label: "", boothType: "standard" as BoothType, status: "available" as BoothStatus, price: "", currency: event.currency, notes: "", externalId: "", labelHidden: false, metadata: {} as Record<string, string> });
   const [busy, setBusy] = React.useState(false);
-  React.useEffect(() => { if (booth) setF({ label: booth.label, boothType: booth.boothType, status: booth.status, price: centsToInput(booth.priceCents), currency: booth.currency ?? event.currency, notes: booth.notes ?? "", externalId: booth.externalId ?? "", labelHidden: booth.labelHidden, metadata: booth.metadata ?? {} }); }, [booth, event.currency]);
+  const [prevBooth, setPrevBooth] = React.useState<BoothRow | null>(null);
+  if (booth !== prevBooth) {
+    setPrevBooth(booth);
+    if (booth) setF({ label: booth.label, boothType: booth.boothType, status: booth.status, price: centsToInput(booth.priceCents), currency: booth.currency ?? event.currency, notes: booth.notes ?? "", externalId: booth.externalId ?? "", labelHidden: booth.labelHidden, metadata: booth.metadata ?? {} });
+  }
   if (!booth) return null;
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -204,7 +208,8 @@ function AssignDialog({ event, booth, exhibitors, onClose, onDone }: { event: Bo
   const [q, setQ] = React.useState("");
   const [markSold, setMarkSold] = React.useState(true);
   const [busy, setBusy] = React.useState<string | null>(null);
-  React.useEffect(() => { if (booth) { setQ(""); setMarkSold(booth.status !== "sold"); } }, [booth]);
+  const [prevBooth, setPrevBooth] = React.useState<BoothRow | null>(null);
+  if (booth !== prevBooth) { setPrevBooth(booth); if (booth) { setQ(""); setMarkSold(booth.status !== "sold"); } }
   if (!booth) return null;
   const needle = q.trim().toLowerCase();
   const list = exhibitors.filter((e) => !booth.exhibitorIds.includes(e.id) && (!needle || e.name.toLowerCase().includes(needle))).slice(0, 40);
