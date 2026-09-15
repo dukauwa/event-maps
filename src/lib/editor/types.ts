@@ -102,8 +102,12 @@ export function emptyDocument(): EditorDocument {
   return { levels: [], booths: [], elements: [], nodes: [], edges: [], transitions: [], pendingMerges: [] };
 }
 
-/** Build the editor document from a live bundle (+ booth notes, which the public bundle omits). */
-export function documentFromBundle(bundle: PlanBundle, notes: Record<string, string | null> = {}): EditorDocument {
+/**
+ * Build the editor document from a live bundle (+ booth notes, which the public bundle omits).
+ * The bundle's `priceCents` is the *resolved* price (rules applied); pass `priceOverrides` (booth id →
+ * stored override) so the editor does not bake resolved prices into overrides on save.
+ */
+export function documentFromBundle(bundle: PlanBundle, notes: Record<string, string | null> = {}, priceOverrides?: Record<string, number | null>): EditorDocument {
   return {
     levels: bundle.levels.map((l) => ({ id: l.id, name: l.name, shortName: l.shortName, sortIndex: l.sortIndex, widthM: l.widthM, heightM: l.heightM, background: l.background, georef: l.georef })),
     booths: bundle.booths.map((b, i) => ({
@@ -114,7 +118,7 @@ export function documentFromBundle(bundle: PlanBundle, notes: Record<string, str
       polygon: b.polygon,
       boothType: b.boothType,
       status: b.status,
-      priceCents: b.priceCents ?? null,
+      priceCents: priceOverrides ? priceOverrides[b.id] ?? null : b.priceCents ?? null,
       colors: b.colors,
       labelHidden: b.labelHidden,
       height3d: b.height3d ?? null,

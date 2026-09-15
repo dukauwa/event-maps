@@ -289,3 +289,40 @@ describe("save bookkeeping", () => {
     expect(s.lastSaved.booths).toHaveLength(2);
   });
 });
+
+describe("array + path flags", () => {
+  it("array action generates a labelled, selected block that respects existing labels", () => {
+    const s = run(st(), { type: "array", levelId: "lv_1", opts: { x: 50, y: 50, columns: 3, rows: 2, boothWidth: 3, boothDepth: 3, aisleX: 0, aisleY: 2, backToBack: false, numbering: { ...DEFAULT_NUMBERING, prefix: "A", start: 1 } }, template: { boothType: "shell" } });
+    expect(s.doc.booths).toHaveLength(9);
+    const added = s.doc.booths.slice(3);
+    // A1..A3 already exist → uniqueLabel bumps them.
+    expect(added.map((b) => b.label)).toEqual(["A4", "A5", "A6", "A7", "A8", "A9"]);
+    expect(added.every((b) => b.boothType === "shell" && b.levelId === "lv_1")).toBe(true);
+    expect(s.selection).toHaveLength(6);
+    expect(s.past).toHaveLength(1);
+  });
+
+  it("pathConnect applies the tool's edge flags", () => {
+    const s = run(st(), { type: "pathConnect", levelId: "lv_1", target: { kind: "free", point: [20, 5] }, fromNodeId: "wn_2", newNodeId: "wn_new", flags: { accessible: false, oneWay: true } });
+    const e = s.doc.edges.find((x) => x.to === "wn_new");
+    expect(e).toMatchObject({ from: "wn_2", accessible: false, oneWay: true, virtual: false, weight: 1 });
+  });
+});
+
+describe("markSaved identity", () => {
+  it("is clean after a save that persisted everything, dirty when edits arrived meanwhile", () => {
+    let s = run(st(), { type: "move", ids: ["bo_a"], dx: 1, dy: 0 });
+    expect(s.doc).not.toBe(s.lastSaved);
+    const savedCopy = JSON.parse(JSON.stringify(s.doc)) as EditorDocument;
+    const clean = run(s, { type: "markSaved", doc: savedCopy });
+    expect(clean.doc).toBe(clean.lastSaved);
+    s = run(s, { type: "move", ids: ["bo_b"], dx: 0, dy: 1 });
+    const dirty = run(s, { type: "markSaved", doc: savedCopy });
+    expect(dirty.doc).not.toBe(dirty.lastSaved);
+  });
+  it("setBoothMetadata replaces keys", () => {
+    let s = run(st(), { type: "updateBooths", ids: ["bo_a"], patch: { metadata: { a: "1", b: "2" } } });
+    s = run(s, { type: "setBoothMetadata", id: "bo_a", metadata: { b: "3" } });
+    expect(s.doc.booths[0].metadata).toEqual({ b: "3" });
+  });
+});

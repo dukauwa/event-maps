@@ -170,25 +170,13 @@ export function Canvas(props: CanvasProps) {
     return () => el.removeEventListener("wheel", onWheel);
   }, [zoomAt, panBy]);
 
-  React.useEffect(() => {
-    const down = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement | null;
-      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
-      if (e.code === "Space") { setSpace(true); e.preventDefault(); }
-      if (e.key === "Enter") finishDraft();
-      if (e.key === "Escape") cancelAll();
-    };
-    const up = (e: KeyboardEvent) => { if (e.code === "Space") setSpace(false); };
-    window.addEventListener("keydown", down);
-    window.addEventListener("keyup", up);
-    return () => { window.removeEventListener("keydown", down); window.removeEventListener("keyup", up); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draft, tool, level.id, pathFrom]);
-
-  // Reset transient drawing state when the tool or level changes.
-  React.useEffect(() => { setDraft([]); setPathFrom(null); setMeasure([]); setRoutePts([]); setCalib([]); setPathTarget(null); setGuides([]); }, [tool, level.id]);
-  React.useEffect(() => { if (!props.calibrate) setCalib([]); }, [props.calibrate]);
-  React.useEffect(() => { if (!options.testRoute) setRoutePts([]); }, [options.testRoute]);
+  // Reset transient drawing state when the tool, level or a mode toggle changes (state adjusted during render, no effect).
+  const resetKey = `${tool}|${level.id}|${props.calibrate ? 1 : 0}|${options.testRoute ? 1 : 0}`;
+  const [prevResetKey, setPrevResetKey] = React.useState(resetKey);
+  if (prevResetKey !== resetKey) {
+    setPrevResetKey(resetKey);
+    setDraft([]); setPathFrom(null); setMeasure([]); setRoutePts([]); setCalib([]); setPathTarget(null); setGuides([]);
+  }
 
   /* ---------- helpers ---------- */
   const planFromEvent = (e: { clientX: number; clientY: number }): Point => {
@@ -208,6 +196,10 @@ export function Canvas(props: CanvasProps) {
   };
   React.useEffect(() => { targetsRef.current = null; }, [doc, level.id]);
 
+  const newBooth = (polygon: Point[]): EditorBooth => ({
+    id: clientId("bo"), levelId: level.id, label: nextBoothLabel(doc.booths.map((b) => b.label)), externalId: null, polygon, boothType: "standard", status: "available", priceCents: null, colors: null, labelHidden: false, height3d: null, notes: null, metadata: {}, exhibitorIds: [], sortIndex: doc.booths.length,
+  });
+
   const finishDraft = () => {
     if (tool === "polygon" && draft.length >= 3) {
       dispatch({ type: "addBooth", booth: newBooth(draft) });
@@ -225,9 +217,21 @@ export function Canvas(props: CanvasProps) {
     if (!draft.length && !pathFrom && !measure.length && !routePts.length) dispatch({ type: "select", ids: [] });
   };
 
-  const newBooth = (polygon: Point[]): EditorBooth => ({
-    id: clientId("bo"), levelId: level.id, label: nextBoothLabel(doc.booths.map((b) => b.label)), externalId: null, polygon, boothType: "standard", status: "available", priceCents: null, colors: null, labelHidden: false, height3d: null, notes: null, metadata: {}, exhibitorIds: [], sortIndex: doc.booths.length,
-  });
+  const keyHandlers = React.useRef({ finishDraft, cancelAll });
+  React.useEffect(() => { keyHandlers.current = { finishDraft, cancelAll }; });
+  React.useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
+      if (e.code === "Space") { setSpace(true); e.preventDefault(); }
+      if (e.key === "Enter") keyHandlers.current.finishDraft();
+      if (e.key === "Escape") keyHandlers.current.cancelAll();
+    };
+    const up = (e: KeyboardEvent) => { if (e.code === "Space") setSpace(false); };
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    return () => { window.removeEventListener("keydown", down); window.removeEventListener("keyup", up); };
+  }, []);
 
   const addPointElement = (kind: "text" | "poi" | "entrance", p: Point) => {
     const props = kind === "text" ? { text: "Text", fontSize: 1.5 } : kind === "poi" ? { poiType: options.poiType, name: options.poiType.replace(/_/g, " ") } : { name: "Entrance", isDefaultStart: !doc.elements.some((e) => e.kind === "entrance" && e.props.isDefaultStart) };
@@ -277,7 +281,7 @@ export function Canvas(props: CanvasProps) {
         setDragBoth({ kind: "rotate", ids: selection, center, a0: Math.atan2(p[1] - center[1], p[0] - center[0]), deg: 0 });
         return;
       }
-      if (handle && selBox) { setDragBoth({ kind: "resize", ids: selection, handle, box0: selBox, box: selBox }); return; }
+      if (handle && handle !== "rotate" && selBox) { setDragBoth({ kind: "resize", ids: selection, handle, box0: selBox, box: selBox }); return; }
       if (vertex && hitId) { setDragBoth({ kind: "vertex", id: hitId, index: Number(vertex), pt: p }); return; }
       if (hitId && !isLocked(hitId)) {
         if (hitKind === "node") {
@@ -330,12 +334,8 @@ export function Canvas(props: CanvasProps) {
         const finalTarget: PathTarget = target.kind === "free" ? { kind: "free", point: sp } : target;
         if (finalTarget.kind === "node" && finalTarget.id === pathFrom) { setPathFrom(null); return; }
         const newNodeId = clientId("wn");
-        dispatch({ type: "pathConnect", levelId: level.id, target: finalTarget, fromNodeId: pathFrom, newNodeId, select: false });
+        dispatch({ type: "pathConnect", levelId: level.id, target: finalTarget, fromNodeId: pathFrom, newNodeId, select: false, flags: options.edgeFlags });
         const nodeId = finalTarget.kind === "node" ? finalTarget.id : newNodeId;
-        if (pathFrom && !(options.edgeFlags.accessible && !options.edgeFlags.oneWay && !options.edgeFlags.virtual)) {
-          // Apply the tool's default flags to the edge we just created (found by endpoints on next render via dispatch).
-          dispatch({ type: "updateEdgesByEndpoints" as never, ids: [], patch: {} });
-        }
         setPathFrom(nodeId);
         return;
       }

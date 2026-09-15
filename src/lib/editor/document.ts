@@ -19,11 +19,13 @@ import {
   transformSelection,
   translate,
   uniqueLabel,
+  generateBoothArray,
   type AlignMode,
+  type BoothArrayOptions,
   type RenumberOptions,
 } from "./geometry-ops";
 import { connectPath, removeFromNetwork, type PathTarget } from "./path";
-import { remapIds } from "./diff";
+import { diffDocuments, remapIds } from "./diff";
 import { clientId, idKind, emptyDocument, type EditorBooth, type EditorDocument, type EditorEdge, type EditorElement, type EditorLevel, type EditorNode, type EditorTransition } from "./types";
 
 export * from "./types";
@@ -56,6 +58,8 @@ export type EditorAction =
   | { type: "addBooths"; booths: EditorBooth[]; select?: boolean }
   | { type: "updateBooths"; ids: string[]; patch: Partial<Omit<EditorBooth, "id">> }
   | { type: "setLabels"; labels: Record<string, string> }
+  /** Replace (not merge) a booth's metadata, so keys can be removed. */
+  | { type: "setBoothMetadata"; id: string; metadata: Record<string, string> }
   | { type: "addElement"; element: EditorElement; select?: boolean }
   | { type: "updateElements"; ids: string[]; patch: Partial<Omit<EditorElement, "id">> }
   | { type: "setGeometry"; booths?: Record<string, Polygon>; elements?: Record<string, Geometry>; nodes?: Record<string, Point> }
@@ -73,7 +77,9 @@ export type EditorAction =
   | { type: "mergeBooths"; ids: string[]; label?: string }
   | { type: "splitBooth"; id: string; axis: "h" | "v"; at?: number }
   | { type: "renumber"; ids: string[]; opts: RenumberOptions }
-  | { type: "pathConnect"; levelId: string; target: PathTarget; fromNodeId: string | null; newNodeId?: string; select?: boolean }
+  | { type: "pathConnect"; levelId: string; target: PathTarget; fromNodeId: string | null; newNodeId?: string; select?: boolean; flags?: { accessible?: boolean; oneWay?: boolean; virtual?: boolean; weight?: number } }
+  /** Generate a rectangular block of booths (see `generateBoothArray`); `template` seeds type/status/colours. */
+  | { type: "array"; levelId: string; opts: BoothArrayOptions; template?: Partial<Pick<EditorBooth, "boothType" | "status" | "priceCents" | "colors" | "height3d">> }
   | { type: "addNode"; node: EditorNode; select?: boolean }
   | { type: "updateEdges"; ids: string[]; patch: Partial<Omit<EditorEdge, "id" | "from" | "to" | "levelId">> }
   | { type: "setLevelGraph"; levelId: string; nodes: { id: string; x: number; y: number }[]; edges: { id?: string; from: string; to: string; accessible?: boolean; oneWay?: boolean; virtual?: boolean; weight?: number }[] }
@@ -223,6 +229,9 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       return commit(state, booths.some((b, i) => b !== doc.booths[i]) ? { ...doc, booths } : doc);
     }
 
+    case "setBoothMetadata":
+      return commit(state, { ...doc, booths: doc.booths.map((b) => (b.id === action.id ? { ...b, metadata: action.metadata } : b)) });
+
     case "addElement": {
       const maxSort = doc.elements.reduce((m, e) => (e.levelId === action.element.levelId ? Math.max(m, e.sortIndex) : m), -1);
       const element = { ...action.element, sortIndex: maxSort + 1 };
@@ -350,8 +359,19 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       return editorReducer(state, { type: "setLabels", labels: renumberLabels(doc, action.ids, action.opts) });
 
     case "pathConnect": {
-      const r = connectPath(doc, action.levelId, action.target, action.fromNodeId, action.newNodeId);
+      const r = connectPath(doc, action.levelId, action.target, action.fromNodeId, action.newNodeId, action.flags);
       return commit(state, r.doc, action.select === false ? undefined : [r.nodeId]);
+    }
+
+    case "array": {
+      const cells = generateBoothArray(action.opts);
+      if (!cells.length) return state;
+      const booths: EditorBooth[] = cells.map((c, i) => ({
+        id: clientId("bo"), levelId: action.levelId, label: c.label, externalId: null, polygon: c.polygon,
+        boothType: action.template?.boothType ?? "standard", status: action.template?.status ?? "available", priceCents: action.template?.priceCents ?? null,
+        colors: action.template?.colors ?? null, labelHidden: false, height3d: action.template?.height3d ?? null, notes: null, metadata: {}, exhibitorIds: [], sortIndex: doc.booths.length + i,
+      }));
+      return editorReducer(state, { type: "addBooths", booths });
     }
 
     case "addNode":
@@ -433,7 +453,11 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
 
     case "markSaved": {
       const strip = (d: EditorDocument) => (d.pendingMerges.length ? { ...d, pendingMerges: [] } : d);
-      return { ...state, lastSaved: { ...action.doc, pendingMerges: [] }, doc: strip(doc), past: state.past.map(strip), future: state.future.map(strip) };
+      const current = strip(doc);
+      const saved = { ...action.doc, pendingMerges: [] };
+      // When the server now holds exactly what we have, share the identity so `isDirty` is false.
+      const lastSaved = diffDocuments(current, saved).isEmpty ? current : saved;
+      return { ...state, lastSaved, doc: current, past: state.past.map(strip), future: state.future.map(strip) };
     }
 
     default:

@@ -12,7 +12,7 @@ export const MAX_SCALE = 400;
 export function useViewport(initial: Viewport = { x: 40, y: 40, scale: 6 }) {
   const [vp, setVp] = React.useState<Viewport>(initial);
   const ref = React.useRef(vp);
-  ref.current = vp;
+  React.useLayoutEffect(() => { ref.current = vp; }, [vp]);
 
   const toPlan = React.useCallback((sx: number, sy: number): Point => {
     const v = ref.current;

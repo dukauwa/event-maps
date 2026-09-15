@@ -8,7 +8,7 @@ import path from "node:path";
 import { chromium, type Page } from "playwright-core";
 
 const args = process.argv.slice(2);
-const port = Number(args[args.indexOf("--port") + 1] || 3199);
+const port = args.includes("--port") ? Number(args[args.indexOf("--port") + 1]) : 3199;
 const out = path.resolve(args.includes("--out") ? args[args.indexOf("--out") + 1] : "e2e-out");
 const base = `http://localhost:${port}`;
 fs.mkdirSync(out, { recursive: true });
