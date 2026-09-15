@@ -132,6 +132,8 @@ export class ViewerController {
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
   private gpsWatch: number | null = null;
   private lastSynced: Partial<ViewerState> = {};
+  private syncing = false;
+  private resyncQueued = false;
   private lastNotice = 0;
   readonly slug: string;
   readonly origin: string;
@@ -311,21 +313,32 @@ export class ViewerController {
   private syncMap(force = false): void {
     const map = this.map;
     if (!map || !this.state.mapReady) return;
+    // Map calls below can emit events synchronously (a fit emits "cameraChanged"), which call
+    // setState, which calls back into here. Guard against re-entry and coalesce into one re-run.
+    if (this.syncing) { this.resyncQueued = true; return; }
+    this.syncing = true;
     const s = this.state, p = this.lastSynced;
     const changed = <K extends keyof ViewerState>(k: K) => force || s[k] !== p[k];
-    if (changed("bundle")) map.setBundle(s.bundle);
-    if (changed("levelId")) map.setLevel(s.levelId, { fit: !force || !this.initialCamera.center });
-    if (changed("selectedBoothIds")) map.setSelected(s.selectedBoothIds);
-    if (changed("highlightedBoothIds")) map.setHighlighted(s.highlightedBoothIds);
-    if (changed("categoryIds") || changed("bundle")) map.setCategoryColors(this.categoryColorMap());
-    if (changed("route")) map.setRoute(s.route);
-    if (changed("markers")) void map.setMarkers(s.markers);
-    if (changed("circles")) map.setCircles(s.circles);
-    if (changed("position")) map.setPosition(s.position);
-    if (changed("view")) map.set3D(s.view === "3d");
-    if (changed("theme")) map.setTheme(s.theme);
-    if (changed("layerVisibility")) for (const [g, v] of Object.entries(s.layerVisibility)) map.setLayerGroupVisibility(g, v);
+    // Record what we are about to apply *before* applying it, so a re-entrant sync sees the work
+    // as already done rather than repeating it.
     this.lastSynced = { bundle: s.bundle, levelId: s.levelId, selectedBoothIds: s.selectedBoothIds, highlightedBoothIds: s.highlightedBoothIds, categoryIds: s.categoryIds, route: s.route, markers: s.markers, circles: s.circles, position: s.position, view: s.view, theme: s.theme, layerVisibility: s.layerVisibility };
+    try {
+      if (changed("bundle")) map.setBundle(s.bundle);
+      if (changed("levelId")) map.setLevel(s.levelId, { fit: !force || !this.initialCamera.center });
+      if (changed("selectedBoothIds")) map.setSelected(s.selectedBoothIds);
+      if (changed("highlightedBoothIds")) map.setHighlighted(s.highlightedBoothIds);
+      if (changed("categoryIds") || changed("bundle")) map.setCategoryColors(this.categoryColorMap());
+      if (changed("route")) map.setRoute(s.route);
+      if (changed("markers")) void map.setMarkers(s.markers);
+      if (changed("circles")) map.setCircles(s.circles);
+      if (changed("position")) map.setPosition(s.position);
+      if (changed("view")) map.set3D(s.view === "3d");
+      if (changed("theme")) map.setTheme(s.theme);
+      if (changed("layerVisibility")) for (const [g, v] of Object.entries(s.layerVisibility)) map.setLayerGroupVisibility(g, v);
+    } finally {
+      this.syncing = false;
+      if (this.resyncQueued) { this.resyncQueued = false; this.syncMap(); }
+    }
   }
 
   getMap(): PlanMap | null { return this.map; }

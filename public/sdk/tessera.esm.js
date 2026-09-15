@@ -1,4 +1,4 @@
-/* Tessera embed SDK · 2026-09-14 · https://github.com/dukauwa/event-maps */
+/* Tessera embed SDK · https://github.com/dukauwa/event-maps */
 
 // src/lib/sdk-protocol.ts
 var SDK_PROTOCOL_VERSION = 1;

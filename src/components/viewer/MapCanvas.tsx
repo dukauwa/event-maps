@@ -39,8 +39,10 @@ export function MapCanvas() {
 
   useEffect(() => { controller.getMap()?.setPadding(isMobile ? { bottom: 140, left: 16 } : { bottom: 16, left: 16 }); }, [isMobile, controller]);
 
+  // No wrapper here: the parent supplies the positioned .tv-map-wrap box. Nesting a second one
+  // collapsed this element to zero height, because an absolutely positioned child gives it no size.
   return (
-    <div className="tv-map-wrap" role="region" aria-label={t("map")}>
+    <>
       <div ref={ref} className="tv-map" />
       {webgl === false && (
         <div className="absolute inset-0 flex items-center justify-center p-6 text-center"><p className="tv-card max-w-md m-0">{t("webglMissing")}</p></div>
@@ -49,6 +51,6 @@ export function MapCanvas() {
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 pointer-events-none" aria-live="polite"><span className="tv-spinner" /><span className="tv-muted">{t("loadingMap")}</span></div>
       )}
       {s.mapError && !loading && <div className="tv-toast" role="alert">{s.mapError}</div>}
-    </div>
+    </>
   );
 }

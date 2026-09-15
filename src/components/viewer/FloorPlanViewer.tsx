@@ -143,7 +143,7 @@ function Root({ preview }: { preview: boolean }) {
       <TopBar />
       <div className="tv-body">
         <Panel />
-        <div className="tv-map-wrap">
+        <div className="tv-map-wrap" role="region" aria-label={t("map")}>
           <MapCanvas />
           <MapControls />
         </div>

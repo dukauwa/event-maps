@@ -46,6 +46,23 @@ export interface PlanMapOptions {
 
 type Unsub = () => void;
 
+/**
+ * MapLibre 6 resolves its worker as `new URL("./maplibre-gl-worker.mjs", import.meta.url)`, which points at
+ * the bundled chunk's directory. Next does not emit the worker there, so it 404s and the worker dies without
+ * an error event: layers exist, sources never tile, the map stays blank. `scripts/prepare-assets.ts` copies
+ * the worker (and the shared chunk it imports) into public/maplibre, and this points MapLibre at it.
+ */
+let workerConfigured = false;
+function configureWorker(ml: typeof import("maplibre-gl"), origin: string): void {
+  if (workerConfigured || typeof ml.setWorkerUrl !== "function") return;
+  workerConfigured = true;
+  try {
+    ml.setWorkerUrl(`${origin}/maplibre/maplibre-gl-worker.mjs`);
+  } catch {
+    // Older MapLibre or a bundler that resolves the worker itself: keep the default.
+  }
+}
+
 export class PlanMap {
   private map: MlMap | null = null;
   private ml: typeof import("maplibre-gl") | null = null;
@@ -130,6 +147,7 @@ export class PlanMap {
     if (this.destroyed) return;
     this.ml = ml;
     const origin = typeof window !== "undefined" ? window.location.origin : "";
+    configureWorker(ml, origin);
     const level = this.currentLevel();
     const g = levelGeoref(level);
     const bg = this.bundle.event.settings.branding.backgroundColor;
