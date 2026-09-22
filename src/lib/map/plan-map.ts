@@ -151,11 +151,10 @@ export class PlanMap {
     const level = this.currentLevel();
     const g = levelGeoref(level);
     const bg = this.bundle.event.settings.branding.backgroundColor;
-    let style: StyleSpecification | null = null;
-    if (level.georef && this.basemapKind !== "none") style = await fetchBasemapStyle(this.basemapKind, origin);
-    if (this.destroyed) return;
-    const usingBasemap = !!style;
-    if (!style) style = blankStyle(bg, origin);
+    // The plan renders first, on a blank style, so first paint never waits on a basemap round trip; the basemap is
+    // fetched in the background and slid underneath once it arrives (see `loadBasemap`).
+    const style: StyleSpecification = blankStyle(bg, origin);
+    const wantsBasemap = !!level.georef && this.basemapKind !== "none";
 
     const size = this.viewport();
     const cam = cameraForPlanBBox(g, levelPlanBBox(level, this.bundle.booths), size, this.padding, 22);
@@ -173,7 +172,7 @@ export class PlanMap {
       minZoom: Math.max(1, cam.zoom - 4),
       maxZoom: 23.5,
       maxPitch: 70,
-      attributionControl: usingBasemap ? { compact: true } : false,
+      attributionControl: wantsBasemap ? { compact: true } : false,
       localIdeographFontFamily: "'Noto Sans CJK JP', 'Hiragino Sans', 'PingFang SC', 'Microsoft YaHei', sans-serif",
       maxBounds: this.allLevelsBounds(),
       fadeDuration: 0,
@@ -209,6 +208,25 @@ export class PlanMap {
     this.ready = true;
     this.emit("ready");
     this.emit("cameraChanged", this.getCamera());
+    if (wantsBasemap) void this.loadBasemap(origin);
+  }
+
+  /**
+   * Fetch the basemap style and merge it under the plan: the plan's sources and layers are carried over, so the
+   * swap is a style diff (new tile sources + layers underneath) rather than a rebuild.
+   */
+  private async loadBasemap(origin: string): Promise<void> {
+    if (this.basemapKind === "none") return;
+    const style = await fetchBasemapStyle(this.basemapKind, origin);
+    const map = this.map;
+    if (!style || !map || this.destroyed) return;
+    map.setStyle(style, {
+      transformStyle: (previous, next) => {
+        const ours = (previous?.layers ?? []).filter((l) => l.id.startsWith("tessera-") && l.type !== "background");
+        // Our symbol layers need a glyph server; keep ours if the basemap style has none, or validation drops the whole style.
+        return { ...next, glyphs: next.glyphs ?? previous?.glyphs, sources: { ...next.sources, ...(previous?.sources ?? {}) }, layers: [...next.layers, ...ours] };
+      },
+    });
   }
 
   destroy(): void {
