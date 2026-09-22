@@ -140,6 +140,7 @@ function Root({ preview }: { preview: boolean }) {
   return (
     <div className="tv-root" data-theme={s.theme} data-kiosk={s.kiosk ? "1" : undefined} dir={isRtl(locale) ? "rtl" : "ltr"} style={style}>
       {branding.customCss && <style dangerouslySetInnerHTML={{ __html: branding.customCss }} />}
+      {preview && !s.embed && <PreviewBar />}
       <TopBar />
       <div className="tv-body">
         <Panel />
@@ -161,6 +162,29 @@ function Root({ preview }: { preview: boolean }) {
         </div>
       )}
       <PrintSummary />
+    </div>
+  );
+}
+
+/** Organiser-only strip on `?preview=1`: switch between the attendee and exhibitor booking views of the draft. */
+function PreviewBar() {
+  const { controller } = useViewer();
+  const s = useViewerState();
+  const t = useT();
+  const slug = encodeURIComponent(controller.slug);
+  const salesOn = s.bundle.event.settings.sales.enabled;
+  const views: { mode: "attendee" | "booking"; href: string; label: string; disabled?: boolean }[] = [
+    { mode: "attendee", href: `/e/${slug}?preview=1`, label: t("attendeeView") },
+    { mode: "booking", href: `/e/${slug}/book?preview=1`, label: t("bookingView"), disabled: !salesOn },
+  ];
+  return (
+    <div className="tv-preview-bar" role="note">
+      <span className="tv-preview-dot" aria-hidden /><span className="font-semibold">{t("previewingDraft")}</span>
+      <span className="tv-muted hidden sm:inline">· {t("viewingAs")}:</span>
+      <span className="tv-preview-switch" role="group" aria-label={t("viewingAs")}>
+        {views.map((v) => <a key={v.mode} href={v.href} aria-current={s.mode === v.mode ? "page" : undefined} aria-disabled={v.disabled || undefined} title={v.disabled ? t("salesClosed") : undefined} onClick={(e) => { if (v.disabled) e.preventDefault(); }}>{v.label}</a>)}
+      </span>
+      <a className="ms-auto font-semibold" href={`/admin/events/${encodeURIComponent(s.bundle.event.id)}/designer`}>{t("openDesigner")} →</a>
     </div>
   );
 }

@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Built/vendored browser assets (SDK bundle, MapLibre and pdf.js workers).
+    "public/sdk/**",
+    "public/maplibre/**",
+    "public/pdfjs/**",
   ]),
 ]);
 

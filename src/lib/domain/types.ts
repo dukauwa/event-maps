@@ -203,9 +203,10 @@ export const DEFAULT_SETTINGS: EventSettings = {
     sharing: true,
     kiosk: true,
     gps: true,
-    showAvailability: true,
+    /** Attendee view only: the booking view (`/e/{slug}/book`) always shows availability, prices and Reserve. */
+    showAvailability: false,
     showPrices: false,
-    allowReservation: true,
+    allowReservation: false,
     search: true,
     sessions: true,
     sponsorBanners: true,

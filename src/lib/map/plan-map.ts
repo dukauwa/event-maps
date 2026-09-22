@@ -53,7 +53,7 @@ type Unsub = () => void;
  * the worker (and the shared chunk it imports) into public/maplibre, and this points MapLibre at it.
  */
 let workerConfigured = false;
-function configureWorker(ml: typeof import("maplibre-gl"), origin: string): void {
+export function configureWorker(ml: typeof import("maplibre-gl"), origin: string): void {
   if (workerConfigured || typeof ml.setWorkerUrl !== "function") return;
   workerConfigured = true;
   try {

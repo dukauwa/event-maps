@@ -2,9 +2,9 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { api, Badge, Button, Dialog, EmptyState, Field, Input, Select, statusTone } from "@/components/ui";
-import { CURRENCIES, fmtDateRange, nz, slugify, timezoneOptions } from "./lib";
-import { FormRow, PageHeader, run, Switch } from "./primitives";
+import { api, Badge, Button, Dialog, EmptyState, Field, Input, statusTone } from "@/components/ui";
+import { fmtDateRange, slugify } from "./lib";
+import { PageHeader, run, Switch } from "./primitives";
 
 export interface EventCard {
   id: string; slug: string; name: string; subtitle: string | null; status: "draft" | "published" | "archived";
@@ -14,13 +14,13 @@ export interface EventCard {
 
 export function EventsList({ events }: { events: EventCard[] }) {
   const router = useRouter();
-  const [creating, setCreating] = React.useState(false);
   const [dup, setDup] = React.useState<EventCard | null>(null);
+  const newEvent = <Link href="/admin/events/new" className="inline-flex h-10 items-center rounded-lg bg-primary px-4 text-sm font-medium text-white hover:opacity-90">New event</Link>;
   return (
     <>
-      <PageHeader title="Events" subtitle={`${events.length} event${events.length === 1 ? "" : "s"} in your organisation`} actions={<Button onClick={() => setCreating(true)}>New event</Button>} />
+      <PageHeader title="Events" subtitle={`${events.length} event${events.length === 1 ? "" : "s"} in your organisation`} actions={newEvent} />
       {events.length === 0 ? (
-        <EmptyState title="No events yet" hint="Create your first event to start designing its floor plan." action={<Button onClick={() => setCreating(true)}>New event</Button>} />
+        <EmptyState title="No events yet" hint="Locate the venue, drop in the existing plan and the designer opens with a first draft." action={newEvent} />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {events.map((e) => (
@@ -53,62 +53,8 @@ export function EventsList({ events }: { events: EventCard[] }) {
           ))}
         </div>
       )}
-      <NewEventDialog open={creating} onClose={() => setCreating(false)} onCreated={(id) => { setCreating(false); router.push(`/admin/events/${id}`); router.refresh(); }} />
       <DuplicateDialog source={dup} onClose={() => setDup(null)} onCreated={(id) => { setDup(null); router.push(`/admin/events/${id}`); router.refresh(); }} />
     </>
-  );
-}
-
-function NewEventDialog({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: (id: string) => void }) {
-  const [f, setF] = React.useState({ name: "", slug: "", startsAt: "", endsAt: "", timezone: "UTC", venueName: "", venueAddress: "", lat: "", lng: "", currency: "USD" });
-  const [slugTouched, setSlugTouched] = React.useState(false);
-  const [busy, setBusy] = React.useState(false);
-  const tzs = React.useMemo(() => timezoneOptions(), []);
-  const set = (k: keyof typeof f, v: string) => setF((s) => ({ ...s, [k]: v, ...(k === "name" && !slugTouched ? { slug: slugify(v) } : {}) }));
-  const [prevOpen, setPrevOpen] = React.useState(open);
-  if (open !== prevOpen) {
-    setPrevOpen(open);
-    if (open) { setF({ name: "", slug: "", startsAt: "", endsAt: "", timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC", venueName: "", venueAddress: "", lat: "", lng: "", currency: "USD" }); setSlugTouched(false); }
-  }
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setBusy(true);
-    const r = await run(() => api<{ id: string }>("/api/v1/events", { method: "POST", json: {
-      name: f.name.trim(), slug: f.slug.trim() || undefined, timezone: f.timezone,
-      startsAt: f.startsAt ? new Date(`${f.startsAt}T09:00:00`).toISOString() : null, endsAt: f.endsAt ? new Date(`${f.endsAt}T18:00:00`).toISOString() : null,
-      venueName: nz(f.venueName), venueAddress: nz(f.venueAddress), venueLat: f.lat ? Number(f.lat) : null, venueLng: f.lng ? Number(f.lng) : null,
-      settings: { sales: { currency: f.currency } },
-    } }), { success: "Event created" });
-    setBusy(false);
-    if (r) onCreated(r.id);
-  };
-  return (
-    <Dialog open={open} onClose={onClose} title="New event" wide>
-      <form onSubmit={submit} className="space-y-4">
-        <FormRow>
-          <Field label="Name"><Input required value={f.name} onChange={(e) => set("name", e.target.value)} placeholder="Grip Connect 2027" /></Field>
-          <Field label="Slug" hint="Public URL: /e/{slug}"><Input value={f.slug} onChange={(e) => { setSlugTouched(true); set("slug", slugify(e.target.value)); }} placeholder="grip-connect-2027" pattern="[a-z0-9-]{2,80}" /></Field>
-        </FormRow>
-        <FormRow cols={3}>
-          <Field label="Starts"><Input type="date" value={f.startsAt} onChange={(e) => set("startsAt", e.target.value)} /></Field>
-          <Field label="Ends"><Input type="date" value={f.endsAt} onChange={(e) => set("endsAt", e.target.value)} min={f.startsAt || undefined} /></Field>
-          <Field label="Timezone"><Select value={f.timezone} onChange={(e) => set("timezone", e.target.value)}>{tzs.map((t) => <option key={t}>{t}</option>)}</Select></Field>
-        </FormRow>
-        <FormRow>
-          <Field label="Venue name"><Input value={f.venueName} onChange={(e) => set("venueName", e.target.value)} placeholder="ExCeL London" /></Field>
-          <Field label="Venue address"><Input value={f.venueAddress} onChange={(e) => set("venueAddress", e.target.value)} /></Field>
-        </FormRow>
-        <FormRow cols={3}>
-          <Field label="Latitude"><Input type="number" step="any" value={f.lat} onChange={(e) => set("lat", e.target.value)} placeholder="51.5083" /></Field>
-          <Field label="Longitude"><Input type="number" step="any" value={f.lng} onChange={(e) => set("lng", e.target.value)} placeholder="0.0299" /></Field>
-          <Field label="Currency"><Select value={f.currency} onChange={(e) => set("currency", e.target.value)}>{CURRENCIES.map((c) => <option key={c}>{c}</option>)}</Select></Field>
-        </FormRow>
-        <div className="flex justify-end gap-2 pt-2">
-          <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button type="submit" loading={busy} disabled={!f.name.trim()}>Create event</Button>
-        </div>
-      </form>
-    </Dialog>
   );
 }
 

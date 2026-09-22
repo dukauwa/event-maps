@@ -6,8 +6,9 @@ import { formatMoney } from "@/lib/pricing";
 import { BRAND } from "@/lib/brand";
 import { eventApi, fmtDateRange, fmtDateTime, pct } from "./lib";
 import { BarChart, ConfirmButton, CopyButton, Kpi, PageHeader, run, Section, useRefresh } from "./primitives";
+import { PreviewMenu } from "./preview-menu";
 
-export interface DashboardEvent { id: string; slug: string; name: string; subtitle: string | null; status: "draft" | "published" | "archived"; startsAt: string | null; endsAt: string | null; timezone: string | null; venueName: string | null; publishedVersion: number; publishedAt: string | null; updatedAt: string; currency: string }
+export interface DashboardEvent { id: string; slug: string; name: string; subtitle: string | null; status: "draft" | "published" | "archived"; startsAt: string | null; endsAt: string | null; timezone: string | null; venueName: string | null; publishedVersion: number; publishedAt: string | null; updatedAt: string; currency: string; salesEnabled: boolean }
 export interface DashboardSummary { booths: number; byStatus: Record<string, number>; inventoryValueCents: number; soldValueCents: number; paidCents: number; pendingCents: number; areaTotal: number; areaSold: number; currency: string; orders: number }
 export interface DashboardAnalytics { uniqueSessions: number; totals: Record<string, number>; byDay: { day: string; views: number; sessions: number; searches: number; routes: number }[]; topExhibitors: { id: string; name: string; views: number }[]; topSearches: { query: string; count: number }[] }
 export interface DashboardCounts { exhibitors: number; unassignedExhibitors: number; categories: number; sessions: number; levels: number; banners: number; pendingOrders: number }
@@ -37,7 +38,7 @@ export function EventDashboard({ event, summary, analytics, counts, versions, or
         subtitle={<>{fmtDateRange(event.startsAt, event.endsAt, event.timezone)}{event.venueName ? ` · ${event.venueName}` : ""}{event.timezone ? ` · ${event.timezone}` : ""}</>}
         actions={<>
           <Link href={`${base}/designer`} className="inline-flex h-10 items-center rounded-lg border border-border bg-surface px-4 text-sm font-medium hover:bg-gray-50">Open designer</Link>
-          <a href={`${publicUrl}?preview=1`} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center rounded-lg border border-border bg-surface px-4 text-sm font-medium hover:bg-gray-50">Preview draft ↗</a>
+          <PreviewMenu eventId={event.id} slug={event.slug} salesEnabled={event.salesEnabled} />
         </>}
       />
 

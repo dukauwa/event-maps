@@ -366,10 +366,10 @@ export function Designer({ bundle, event, notes = {}, priceOverrides }: Designer
   }, [viewport]);
 
   /* ---------------- top bar handlers ---------------- */
-  const preview = React.useCallback(async () => {
+  const preview = React.useCallback(async (view: "attendee" | "booking") => {
     const ok = await save();
     if (!ok) toast("Preview shows the last saved state", "info");
-    window.open(`/e/${event.slug}?preview=1`, "_blank", "noopener");
+    window.open(`/e/${event.slug}${view === "booking" ? "/book" : ""}?preview=1`, "_blank", "noopener");
   }, [save, event.slug]);
 
   const panelActions = React.useMemo<PanelActions>(() => ({ merge, split, renumber, requestDelete, zoomTo, setActiveLevel: selectLevel, startTestRoute, openGenerate: () => setDialog({ kind: "generate" }) }), [merge, split, renumber, requestDelete, zoomTo, selectLevel, startTestRoute]);
@@ -389,7 +389,7 @@ export function Designer({ bundle, event, notes = {}, priceOverrides }: Designer
         eventId={event.id} eventName={event.name} eventSlug={event.slug}
         levels={doc.levels} activeLevelId={level.id} saveState={saveState}
         onSelectLevel={selectLevel} onAddLevel={addLevel} onLevelSettings={(id) => setDialog({ kind: "level", id })}
-        onSave={() => void save()} onPreview={() => void preview()} onPublish={() => setDialog({ kind: "publish" })}
+        onSave={() => void save()} onPreview={(v) => void preview(v)} salesEnabled={event.settings.sales.enabled} onPublish={() => setDialog({ kind: "publish" })}
         onImportCsv={() => setDialog({ kind: "csv" })} onImportSvg={() => setDialog({ kind: "svg" })}
         onExportPng={() => void exportLevel("png")} onExportSvg={() => void exportLevel("svg")}
         onGenerate={() => setDialog({ kind: "generate" })} onTestRoute={startTestRoute} onHelp={() => setDialog({ kind: "shortcuts" })}

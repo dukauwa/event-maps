@@ -8,8 +8,8 @@ Interactive event floor plans, booth sales and attendee wayfinding. A self-hoste
 
 | Persona | Capabilities |
 | --- | --- |
-| Organiser | Floor plan designer (draw, resize, merge, booth arrays, SVG/CSV import, multi-level, georeferencing, background images), booth inventory with statuses, holds and pricing rules, exhibitor management with magic-link portals, categories, sessions, sponsorship packages and booth extras, banner ads, publish with version history, analytics (views, searches, zero-result searches, heat maps), API keys, webhooks, Grip sync. |
-| Exhibitor | Self-service portal: profile with live preview and completeness score, logo/gallery upload, reserve or buy a booth, add-ons, orders, per-exhibitor analytics, share link, QR and "find us" badge. |
+| Organiser | Venue-first event wizard (find the venue on a map, place and rotate the hall footprint, upload the existing PDF/image/SVG plan and get every stand auto-drafted), floor plan designer (draw, resize, merge, booth arrays, SVG/CSV import, multi-level, georeferencing, background images, calibration), "Preview as" attendee / exhibitor booking / portal / kiosk / embed, booth inventory with statuses, holds and pricing rules, exhibitor management with magic-link portals, categories, sessions, sponsorship packages and booth extras, banner ads, publish with version history, analytics (views, searches, zero-result searches, heat maps), API keys, webhooks, Grip sync. |
+| Exhibitor | Booking view of the map (`/e/{slug}/book`): available stands with prices, filters, Reserve / Buy straight from the plan. Self-service portal: profile with live preview and completeness score, logo/gallery upload, reserve or buy a booth, add-ons, orders, per-exhibitor analytics, share link, QR and "find us" badge. |
 | Attendee | Fast MapLibre viewer: search, categories, A–Z list, sessions, exhibitor details, directions with accessible routing across levels, multi-stop "my plan" optimisation, bookmarks, share, kiosk mode with "you are here", 2D/3D, 10 languages, deep links, offline-friendly bundle. |
 | Developer | REST API with OpenAPI, ExpoFP-compatible JSON API shim and `data.json`, embed SDK mirroring ExpoFP's `FloorPlan` API, signed webhooks with retries, GeoJSON/CSV/offline exports. |
 
@@ -67,10 +67,12 @@ Set `APP_URL` on any real deployment so share links, QR codes and checkout redir
 - **Publishing** snapshots the event into an immutable bundle (`floorplan_versions`) served at `/e/{slug}/data.json`; the viewer polls `version.json` and hot-reloads.
 - **Embed SDK** (`packages/sdk`, built to `public/sdk/tessera.js`): iframe + postMessage RPC; protocol shared with the viewer via `src/lib/sdk-protocol.ts`.
 - **Webhooks**: HMAC-SHA256 signed, 5 retries with backoff, delivery log.
+- **Plan import** (`src/lib/import`): the wizard renders a PDF (pdf.js, legacy build for older browsers) or image in the browser, flood-fills every closed outline into candidate stands (`raster-booths.ts`, pure and unit-tested), names them from the PDF's text runs or a row/sequential scheme, and uploads only the rendered PNG as the level background. `footprint.ts` turns the rectangle placed on the basemap into the level georef.
+- **Two viewer modes** from one bundle: the attendee view (`/e/{slug}`) and the exhibitor booking view (`/e/{slug}/book`, or `?mode=booking`). `bundleForMode()` in the viewer controller switches availability, prices and reservation on and attendee-only extras off; organisers preview both from the dashboard, the designer, or the amber strip inside any `?preview=1` page.
 
 ```
-src/app/e/[slug]          attendee viewer, embed target, public data feeds, reservation flow
-src/app/admin             organiser portal (+ /designer)
+src/app/e/[slug]          attendee viewer, /book booking view, embed target, public data feeds, reservation flow
+src/app/admin             organiser portal (+ /events/new wizard, /designer)
 src/app/x/[token]         exhibitor portal
 src/app/api/v1            REST API (+ /compat/expofp shim, /openapi.json)
 src/app/docs              developer documentation
@@ -80,7 +82,9 @@ packages/sdk              embed SDK source
 
 ## ExpoFP parity checklist
 
+- [x] New plan flow: locate the venue, place the hall on the map, import PDF / PNG / JPG / SVG with auto-drafted booths (DXF/DWG parsing pending)
 - [x] Designer: draw/drag/resize/merge booths, multi-level, background image, georeference, SVG and CSV import
+- [x] Separate exhibitor booking view and attendee view, with organiser "Preview as" for each
 - [x] Booth statuses (available/held/reserved/sold/unavailable), pricing rules, holds with expiry, reserve/buy/inquiry modes, Stripe or invoice checkout
 - [x] Exhibitor self-service with auto-login links, logo/gallery, custom button, video, socials, categories, extras/sponsorships with limits
 - [x] Attendee viewer: search, filters, bookmarks, directions, accessible routing, multi-level, kiosk, share, languages, banners/featured listings

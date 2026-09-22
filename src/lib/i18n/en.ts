@@ -177,6 +177,27 @@ export const en = {
   tourStart: "Start",
   allLevels: "All {levels}",
   currentLevel: "This {level}",
+  // Booking view & organiser preview
+  booking: "Book a stand",
+  forSale: "For sale",
+  bookingTagline: "Choose your stand: available {booths} are priced and ready to reserve.",
+  boothsForSale: "{n} {booths} available",
+  bookingIntro: "Pick a {booth} on the map or from the list, then reserve or buy it.",
+  boothType: "Type",
+  anyType: "Any type",
+  sortBy: "Sort",
+  sortNumber: "By number",
+  sortPrice: "By price",
+  sortSize: "By size",
+  onlyAvailable: "Only show available",
+  noBoothsForSale: "No {booths} match these filters.",
+  priceOnRequest: "Price on request",
+  attendeeView: "Attendee view",
+  bookingView: "Exhibitor booking view",
+  previewingDraft: "Previewing the unpublished plan",
+  viewingAs: "Viewing as",
+  openDesigner: "Open designer",
+  salesClosed: "Booth sales are not open for this event.",
 } as const;
 
 export type I18nKey = keyof typeof en;

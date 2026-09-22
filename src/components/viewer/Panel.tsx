@@ -6,6 +6,7 @@ import { useT, useViewer, useViewerState } from "./context";
 import { DirectionsPanel } from "./DirectionsPanel";
 import { ExhibitorDetails } from "./ExhibitorDetails";
 import { ExhibitorsTab } from "./ExhibitorsTab";
+import { BoothsTab } from "./BoothsTab";
 import { PlanTab } from "./PlanTab";
 import { SessionsTab } from "./SessionsTab";
 import { PoiDetails, SessionDetails } from "./SmallDetails";
@@ -72,6 +73,7 @@ export function Panel() {
   if (s.noOverlay || !s.visibility.overlay) return null;
 
   const tabs: { id: ViewerTab; label: string }[] = [];
+  if (s.mode === "booking") tabs.push({ id: "booths", label: t("forSale") });
   if (f.exhibitorList) tabs.push({ id: "exhibitors", label: b.event.settings.terms.exhibitors });
   if (b.categories.length) tabs.push({ id: "categories", label: t("categories") });
   if (f.sessions && b.sessions.length) tabs.push({ id: "sessions", label: t("sessions") });
@@ -93,6 +95,7 @@ export function Panel() {
           </div>
         )}
         <div className="flex flex-col flex-1 min-h-0" role="tabpanel" id={`tv-tabpanel-${tab}`} aria-labelledby={`tv-tab-${tab}`}>
+          {tab === "booths" && <BoothsTab />}
           {tab === "exhibitors" && <ExhibitorsTab />}
           {tab === "categories" && <CategoriesTab />}
           {tab === "sessions" && <SessionsTab />}

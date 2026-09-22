@@ -6,7 +6,7 @@ import type { ViewerParams } from "@/lib/sdk-protocol";
 
 export const VIEWER_PARAM_KEYS = [
   "booth", "exhibitor", "category", "level", "route", "from", "to", "accessible", "search", "lang", "kiosk", "noOverlay",
-  "offHistory", "plan", "position", "view", "theme", "preview", "session", "embed", "consent", "hide", "bearing", "zoom", "center", "tab",
+  "offHistory", "plan", "position", "view", "theme", "preview", "session", "embed", "consent", "hide", "bearing", "zoom", "center", "tab", "mode",
 ] as const satisfies readonly (keyof ViewerParams)[];
 
 export type HideTarget = "controls" | "levels" | "header" | "overlay" | "searchButtons";
@@ -60,7 +60,10 @@ export function parseViewerParams(src: ParamSource): ViewerParams {
         if (v === "ask" || v === "granted" || v === "denied") out.consent = v;
         break;
       case "tab":
-        if (v === "exhibitors" || v === "categories" || v === "sessions" || v === "plan") out.tab = v;
+        if (v === "exhibitors" || v === "categories" || v === "sessions" || v === "plan" || v === "booths") out.tab = v;
+        break;
+      case "mode":
+        if (v === "attendee" || v === "booking") out.mode = v;
         break;
       default:
         (out as Record<string, string>)[key] = v;

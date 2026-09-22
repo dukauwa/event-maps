@@ -67,7 +67,9 @@ export interface ViewerParams {
   bearing?: string;
   zoom?: string;
   center?: string; // "x,y" plan coords
-  tab?: "exhibitors" | "categories" | "sessions" | "plan";
+  tab?: "exhibitors" | "categories" | "sessions" | "plan" | "booths";
+  /** `booking`: the exhibitor-facing view where available booths are priced and reservable. Default `attendee`. */
+  mode?: "attendee" | "booking";
 }
 
 /** Camera description shared by setCamera/getCamera (plan coords or lng/lat). */

@@ -3,6 +3,7 @@
  *
  * 1. Bundles the embed SDK into public/sdk.
  * 2. Copies MapLibre's worker chunks into public/maplibre.
+ * 3. Copies the pdf.js worker into public/pdfjs (the floor-plan importer renders PDFs in the browser).
  *
  * (2) is not optional: MapLibre 6 loads its worker with `new URL("./maplibre-gl-worker.mjs", import.meta.url)`,
  * which resolves against the bundled chunk's URL. Next's bundler does not emit the worker file there, so the
@@ -42,8 +43,20 @@ function copyMaplibreWorker() {
   console.log(`[assets] maplibre worker → public/maplibre (v${version})`);
 }
 
+function copyPdfWorker() {
+  // Legacy build: same API, with polyfills for browsers that lack the newest ES features (must match the import in plan-file.ts).
+  const build = path.join(path.dirname(require_.resolve("pdfjs-dist/package.json")), "legacy", "build");
+  const out = path.join(root, "public", "pdfjs");
+  fs.mkdirSync(out, { recursive: true });
+  fs.copyFileSync(path.join(build, "pdf.worker.min.mjs"), path.join(out, "pdf.worker.min.mjs"));
+  const version = JSON.parse(fs.readFileSync(path.join(build, "..", "..", "package.json"), "utf8")).version as string;
+  fs.writeFileSync(path.join(out, "VERSION"), `${version} (legacy build)\n`);
+  console.log(`[assets] pdf.js worker → public/pdfjs (v${version})`);
+}
+
 async function main() {
   await buildSdk();
   copyMaplibreWorker();
+  copyPdfWorker();
 }
 main().catch((e) => { console.error(e); process.exit(1); });

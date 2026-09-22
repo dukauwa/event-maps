@@ -21,7 +21,7 @@ export default async function ReservePage({ params, searchParams }: { params: Pr
   const level = bundle.levels.find((l) => l.id === booth.levelId);
   const q = quoteBooth(event, booth.id);
   const s = event.settings;
-  const canReserve = s.sales.enabled && s.features.allowReservation && (booth.status === "available" || s.sales.mode === "inquiry");
+  const canReserve = s.sales.enabled && (booth.status === "available" || s.sales.mode === "inquiry");
   const extras = bundle.extras.filter((x) => x.reserveOrBuyAllowed);
   return (
     <main className="mx-auto max-w-5xl px-4 py-8" style={{ ["--primary" as string]: s.branding.primaryColor }}>

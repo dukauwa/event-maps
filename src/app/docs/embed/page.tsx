@@ -48,7 +48,9 @@ export default function EmbedDocs() {
 /e/{slug}?route=A101,T05&accessible=1
 /e/{slug}?category=<id>&level=L2&lang=de
 /e/{slug}?kiosk=1&position=90,105        (kiosk with a fixed "you are here")
-/e/{slug}?hide=header,controls&noOverlay=1&embed=1`}</Code>
+/e/{slug}?hide=header,controls&noOverlay=1&embed=1
+/e/{slug}/book   or   /e/{slug}?mode=booking   (exhibitor booking view: availability, prices, Reserve / Buy)
+/e/{slug}?preview=1                       (organisers only: the unpublished draft, with an attendee / booking switch)`}</Code>
       <H2>Playground</H2>
       <Playground />
     </>

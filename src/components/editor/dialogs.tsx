@@ -334,7 +334,7 @@ export function CsvImportDialog({ open, eventId, onClose, beforeImport }: { open
   };
   return (
     <Dialog open={open} onClose={onClose} title="Import booths from CSV">
-      <p className="text-sm text-gray-700">Columns: <code className="rounded bg-gray-100 px-1">label, level, x, y, width, height, type, status, price, external_id, notes</code>. Booths are matched by external id, then by label; existing booths are updated. Coordinates are metres from the level's top-left corner.</p>
+      <p className="text-sm text-gray-700">Columns: <code className="rounded bg-gray-100 px-1">label, level, x, y, width, height, type, status, price, external_id, notes</code>. Booths are matched by external id, then by label; existing booths are updated. Coordinates are metres from the level&apos;s top-left corner.</p>
       <input type="file" accept=".csv,text/csv" className="mt-4 block w-full text-sm" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
       <div className="mt-5 flex justify-end gap-2">
         <Button variant="outline" onClick={onClose}>Cancel</Button>
@@ -428,7 +428,7 @@ export function GenerateDialog({ open, level, hasNetwork, onClose, onGenerate }:
   const [busy, setBusy] = React.useState(false);
   return (
     <Dialog open={open} onClose={onClose} title="Generate path network automatically">
-      <p className="text-sm text-gray-700">Builds an aisle network for <strong>{level?.name}</strong> from the saved booths, walls and blocking zones. You get a preview first; applying it replaces the level's current network{hasNetwork ? " (this level already has one)" : ""}.</p>
+      <p className="text-sm text-gray-700">Builds an aisle network for <strong>{level?.name}</strong> from the saved booths, walls and blocking zones. You get a preview first; applying it replaces the level&apos;s current network{hasNetwork ? " (this level already has one)" : ""}.</p>
       <Row className="mt-4">
         <NumberField label="Grid cell" value={cellSize} onChange={(v) => setCellSize(Math.min(5, Math.max(0.25, v ?? 1)))} unit="m" step={0.25} min={0.25} max={5} />
         <NumberField label="Clearance from booths" value={clearance} onChange={(v) => setClearance(Math.min(5, Math.max(0, v ?? 0.6)))} unit="m" step={0.1} min={0} max={5} />

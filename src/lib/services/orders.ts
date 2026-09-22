@@ -47,7 +47,8 @@ export function quoteBooth(ev: Event, boothId: string) {
  * Mode 'reserve' → order stays 'pending_payment' (organiser confirms); 'buy' → checkout URL; 'inquiry' → no hold, just a lead.
  */
 export function reserveBooth(ev: Event, input: ReserveInput, origin: string): { order: Order; checkoutUrl: string | null } {
-  if (!ev.settings.sales.enabled || !ev.settings.features.allowReservation) throw badRequest("Reservations are not enabled for this event");
+  // `features.allowReservation` only decides whether the attendee map shows a Reserve button; the booking view and portal always can.
+  if (!ev.settings.sales.enabled) throw badRequest("Booth sales are not enabled for this event");
   releaseExpiredHolds(ev);
   const { booth, price, taxCents, currency } = quoteBooth(ev, input.boothId);
   const mode = ev.settings.sales.mode;

@@ -12,7 +12,7 @@ export interface SettingsEvent { id: string; slug: string; name: string; subtitl
 const FEATURE_LABELS: Record<keyof EventSettings["features"], [string, string]> = {
   basemap: ["Basemap", "Show the street map under a georeferenced plan"], threeD: ["3D view", "Extrude booths and zones"], wayfinding: ["Wayfinding", "Route between booths, POIs and entrances"], accessibleRouting: ["Accessible routing", "Step-free option (lifts, ramps)"],
   bookmarks: ["Bookmarks", "Attendees can save booths and sessions"], sharing: ["Sharing", "Share links and personal plans"], kiosk: ["Kiosk mode", "Idle reset and “You are here”"], gps: ["GPS position", "Blue dot when on site"],
-  showAvailability: ["Show availability", "Colour booths by status"], showPrices: ["Show prices", "Display booth prices publicly"], allowReservation: ["Allow reservation", "Reserve / buy buttons in the viewer"], search: ["Search", "Exhibitor, booth, category and session search"],
+  showAvailability: ["Show availability to attendees", "Colour booths by status on the public map (the booking view always does)"], showPrices: ["Show prices to attendees", "Display booth prices on the public map (the booking view always does)"], allowReservation: ["Reserve from the attendee map", "Reserve / buy buttons on the public map, not just in the booking view"], search: ["Search", "Exhibitor, booth, category and session search"],
   sessions: ["Sessions", "Agenda tab"], sponsorBanners: ["Sponsor banners", "Rotating banner placements"], exhibitorList: ["Exhibitor list", "Alphabetical list tab"], heatmapAnalytics: ["Heatmap analytics", "Record tap positions for the heatmap"],
 };
 

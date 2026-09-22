@@ -22,7 +22,8 @@ export interface TopBarProps {
   onAddLevel: () => void;
   onLevelSettings: (id: string) => void;
   onSave: () => void;
-  onPreview: () => void;
+  onPreview: (view: "attendee" | "booking") => void;
+  salesEnabled: boolean;
   onPublish: () => void;
   onImportCsv: () => void;
   onImportSvg: () => void;
@@ -95,7 +96,14 @@ export const TopBar = React.memo(function TopBar(p: TopBarProps) {
           { label: "Test a route", icon: "route", onClick: p.onTestRoute },
         ]}
       />
-      <Button size="sm" variant="outline" onClick={p.onPreview} title="Open the attendee viewer with the unpublished plan"><Icon name="preview" size={15} /> Preview</Button>
+      <Menu
+        align="right"
+        trigger={(open) => <Button size="sm" variant="outline" className={cn(open && "bg-gray-100")} title="Open the unpublished plan as each audience sees it"><Icon name="preview" size={15} /> Preview as</Button>}
+        items={[
+          { label: "Attendee view", icon: "preview", hint: "public map", onClick: () => p.onPreview("attendee") },
+          { label: "Exhibitor booking view", icon: "ticket", hint: p.salesEnabled ? "prices · reserve" : "sales off", disabled: !p.salesEnabled, onClick: () => p.onPreview("booking") },
+        ]}
+      />
       <Button size="sm" onClick={p.onPublish}><Icon name="publish" size={15} /> Publish</Button>
       <IconButton icon="help" label="Keyboard shortcuts" shortcut="?" onClick={p.onHelp} tip="bottom" className="size-8" />
     </header>

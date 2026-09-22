@@ -21,13 +21,14 @@ import type { Locale } from "@/lib/domain/types";
 import type { AnalyticsClient } from "./analytics";
 import { bookmarkKey, loadBookmarkState, saveBookmarkState, splitBookmarkKey, toggleIn, type BookmarkKind } from "./bookmarks";
 import { buildSearchIndex, defaultStartElement, findBooth, findCategory, findElementById, findExhibitor, findLevel, findSession, type SearchIndex, type SearchResult } from "./search";
-import { HIDE_TARGETS, mergeViewerParams, parseHide, parseList, parseNumber, parsePosition, parseRouteParam, parseViewerParams, writeUrl, type HideTarget } from "./url-state";
+import { HIDE_TARGETS, mergeViewerParams, parseHide, parseList, parseNumber, parsePosition, parseRouteParam, parseViewerParams, writeUrl } from "./url-state";
 
 /* ------------------------------------------------------------------ */
 /* State                                                                */
 /* ------------------------------------------------------------------ */
 
-export type ViewerTab = "exhibitors" | "categories" | "sessions" | "plan";
+export type ViewerTab = "exhibitors" | "categories" | "sessions" | "plan" | "booths";
+export type ViewerMode = "attendee" | "booking";
 
 export type PanelView =
   | { kind: "list" }
@@ -55,6 +56,8 @@ export interface ViewerState {
   theme: "light" | "dark";
   view: "2d" | "3d";
   kiosk: boolean;
+  /** Attendee view (exhibitors, wayfinding) or the exhibitor booking view (availability, prices, reserve). */
+  mode: ViewerMode;
   embed: boolean;
   noOverlay: boolean;
   offHistory: boolean;
@@ -113,6 +116,16 @@ const MAX_ROUTE_WAYPOINTS = 10;
 
 function endpointFromBooth(b: BundleBooth): RouteEndpoint { return { type: "booth", id: b.id }; }
 
+/**
+ * The booking view is the same bundle seen through sales glasses: availability and prices always on, reservation
+ * allowed, attendee-only extras (sessions, bookmarks) off. Attendees keep whatever the organiser configured.
+ */
+export function bundleForMode(bundle: PlanBundle, mode: ViewerMode): PlanBundle {
+  if (mode !== "booking") return bundle;
+  const settings = bundle.event.settings;
+  return { ...bundle, event: { ...bundle.event, settings: { ...settings, features: { ...settings.features, showAvailability: true, showPrices: true, allowReservation: settings.sales.enabled, sessions: false, bookmarks: false, sponsorBanners: false } } } };
+}
+
 /* ------------------------------------------------------------------ */
 /* Controller                                                           */
 /* ------------------------------------------------------------------ */
@@ -144,7 +157,8 @@ export class ViewerController {
 
   constructor(opts: ControllerOptions) {
     const params = opts.params ?? {};
-    const bundle = opts.bundle;
+    const mode: ViewerMode = params.mode === "booking" && opts.bundle.event.settings.sales.enabled ? "booking" : "attendee";
+    const bundle = bundleForMode(opts.bundle, mode);
     const s = bundle.event.settings;
     this.slug = opts.slug;
     this.origin = opts.origin ?? (typeof window !== "undefined" ? window.location.origin : "");
@@ -165,13 +179,14 @@ export class ViewerController {
       theme: params.theme ?? (prefersDark && !params.embed ? "dark" : "light"),
       view: params.view === "3d" && s.features.threeD ? "3d" : "2d",
       kiosk,
+      mode,
       embed: params.embed === "1" || !!opts.isEmbedded,
       noOverlay,
       offHistory: params.offHistory === "1",
       preview: params.preview === "1",
       debugCoords: typeof window !== "undefined" && /[?&]debug=coords/.test(window.location.search),
       visibility: { ...DEFAULT_VISIBILITY, controls: !hide.has("controls"), levels: !hide.has("levels"), header: !hide.has("header"), overlay: !noOverlay, searchButtons: !hide.has("searchButtons") },
-      tab: params.tab ?? "exhibitors",
+      tab: params.tab ?? (mode === "booking" ? "booths" : "exhibitors"),
       panel: { kind: "list" },
       panelOpen: !noOverlay,
       searchQuery: params.search ?? "",
@@ -369,9 +384,10 @@ export class ViewerController {
     if (s.searchQuery && s.panel.kind === "list") out.search = s.searchQuery;
     if (s.locale !== this.initialLocale) out.lang = s.locale;
     if (s.kiosk) out.kiosk = "1";
+    if (s.mode === "booking") out.mode = "booking";
     if (s.view === "3d") out.view = "3d";
     if (s.theme === "dark") out.theme = "dark";
-    if (s.tab !== "exhibitors" && s.panel.kind === "list") out.tab = s.tab;
+    if (s.tab !== (s.mode === "booking" ? "booths" : "exhibitors") && s.panel.kind === "list") out.tab = s.tab;
     if (s.position && (s.kiosk || init.position)) out.position = `${round2(s.position.x)},${round2(s.position.y)},${this.levelById(s.position.levelId)?.shortName ?? s.position.levelId}`;
     const hidden = HIDE_TARGETS.filter((h) => !s.visibility[h]);
     if (hidden.length) out.hide = hidden.join(",");
@@ -815,10 +831,11 @@ export class ViewerController {
   }
 
   /** Replace the bundle (live update after a new publish). Keeps selection where ids still exist. */
-  setBundle(bundle: PlanBundle): void {
+  setBundle(next: PlanBundle): void {
     this.searchIndex = null;
     this.graph = null;
     const s = this.state;
+    const bundle = bundleForMode(next, s.mode);
     const levelId = bundle.levels.some((l) => l.id === s.levelId) ? s.levelId : bundle.levels[0]?.id ?? "";
     const boothIds = new Set(bundle.booths.map((b) => b.id));
     const panel: PanelView = s.panel.kind === "exhibitor" && !bundle.exhibitors.some((e) => e.id === (s.panel as { id: string }).id) ? { kind: "list" }

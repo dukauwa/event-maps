@@ -28,7 +28,7 @@ export default async function EventDashboardPage({ params }: { params: Promise<{
   };
   return (
     <EventDashboard
-      event={{ id: event.id, slug: event.slug, name: event.name, subtitle: event.subtitle, status: event.status, startsAt: event.startsAt, endsAt: event.endsAt, timezone: event.timezone, venueName: event.venueName, publishedVersion: event.publishedVersion, publishedAt: event.publishedAt, updatedAt: event.updatedAt, currency: event.settings.sales.currency }}
+      event={{ id: event.id, slug: event.slug, name: event.name, subtitle: event.subtitle, status: event.status, startsAt: event.startsAt, endsAt: event.endsAt, timezone: event.timezone, venueName: event.venueName, publishedVersion: event.publishedVersion, publishedAt: event.publishedAt, updatedAt: event.updatedAt, currency: event.settings.sales.currency, salesEnabled: event.settings.sales.enabled }}
       summary={summary}
       analytics={{ uniqueSessions: a.uniqueSessions, totals: a.totals, byDay: a.byDay, topExhibitors: a.topExhibitors, topSearches: a.topSearches }}
       counts={counts}

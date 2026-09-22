@@ -33,8 +33,8 @@ export function TopBar() {
           <img src={branding.logoUrl} alt="" className="w-8 h-8 rounded-lg object-cover flex-none" />
         ) : null}
         <div className="min-w-0">
-          <div className="font-semibold truncate leading-tight">{b.event.name}</div>
-          {!isMobile && b.event.subtitle && <div className="tv-muted text-xs truncate">{b.event.subtitle}</div>}
+          <div className="font-semibold leading-tight flex items-center gap-2 min-w-0"><span className="truncate">{b.event.name}</span>{s.mode === "booking" && <span className="tv-badge tv-badge-partner flex-none">{t("booking")}</span>}</div>
+          {!isMobile && (s.mode === "booking" ? <div className="tv-muted text-xs truncate">{t("bookingTagline")}</div> : b.event.subtitle ? <div className="tv-muted text-xs truncate">{b.event.subtitle}</div> : null)}
         </div>
       </div>
       {f.search && (

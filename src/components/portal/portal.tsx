@@ -189,7 +189,10 @@ function BoothTab({ p }: { p: Props }) {
       {holds.map((o) => <Card key={o.id} className="border-yellow-300 bg-yellow-50"><p className="text-sm">You have a hold on {t.booth.toLowerCase()} <strong>{p.availableBooths.find((b) => b.id === o.boothId)?.label ?? o.boothId}</strong> until {fmtDateTime(o.expiresAt, p.event.timezone)}.</p>{o.checkoutUrl && <a href={o.checkoutUrl} className="mt-2 inline-block text-sm font-medium text-primary underline">Continue to payment</a>}</Card>)}
       <Card>
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <h2 className="font-semibold">Available {t.booths.toLowerCase()} <span className="text-gray-500">({list.length})</span></h2>
+          <div>
+            <h2 className="font-semibold">Available {t.booths.toLowerCase()} <span className="text-gray-500">({list.length})</span></h2>
+            <a href={`${p.event.publicUrl}/book`} target="_blank" rel="noreferrer" className="text-sm font-medium text-primary hover:underline">Pick on the interactive map ↗</a>
+          </div>
           <div className="flex gap-2">
             <Select value={level} onChange={(e) => setLevel(e.target.value)} aria-label="Level"><option value="">All levels</option>{levels.map((l) => <option key={l}>{l}</option>)}</Select>
             <Input type="number" placeholder="Max price" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} className="w-32" aria-label="Max price" />
