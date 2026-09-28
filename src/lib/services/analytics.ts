@@ -20,14 +20,14 @@ export const analyticsInput = z.object({
   })).max(500),
 });
 
-export function ingestAnalytics(eventId: string, input: z.infer<typeof analyticsInput>, userAgent?: string | null) {
+export async function ingestAnalytics(eventId: string, input: z.infer<typeof analyticsInput>, userAgent?: string | null) {
   const device = userAgent && /Mobi|Android|iPhone|iPad/i.test(userAgent) ? "mobile" : "desktop";
   const rows = input.events.map((e) => ({
     id: newId("an"), eventId, type: e.type, sessionId: e.sessionId ?? null, targetType: e.targetType ?? null, targetId: e.targetId ?? null, query: e.query?.slice(0, 200) ?? null,
     levelId: e.levelId ?? null, x: e.x ?? null, y: e.y ?? null, meta: { device, ...(e.meta ?? {}) }, createdAt: e.at && !Number.isNaN(Date.parse(e.at)) ? new Date(e.at).toISOString() : new Date().toISOString(),
   }));
-  for (let i = 0; i < rows.length; i += 200) db().insert(schema.analyticsEvents).values(rows.slice(i, i + 200)).run();
-  for (const e of input.events) if (e.targetType === "banner" && e.targetId && (e.type === "banner_impression" || e.type === "banner_click")) countBanner(e.targetId, e.type === "banner_click" ? "click" : "impression");
+  for (let i = 0; i < rows.length; i += 200) await db().insert(schema.analyticsEvents).values(rows.slice(i, i + 200)).run();
+  for (const e of input.events) if (e.targetType === "banner" && e.targetId && (e.type === "banner_impression" || e.type === "banner_click")) await countBanner(e.targetId, e.type === "banner_click" ? "click" : "impression");
   return rows.length;
 }
 
@@ -45,10 +45,10 @@ export interface AnalyticsSummary {
   heatmap: { levelId: string; x: number; y: number; weight: number }[];
 }
 
-export function analyticsSummary(eventId: string, from?: string, to?: string): AnalyticsSummary {
+export async function analyticsSummary(eventId: string, from?: string, to?: string): Promise<AnalyticsSummary> {
   const toD = to ? new Date(to) : new Date();
   const fromD = from ? new Date(from) : new Date(toD.getTime() - 30 * 86400e3);
-  const rows = db().select().from(schema.analyticsEvents).where(and(eq(schema.analyticsEvents.eventId, eventId), gte(schema.analyticsEvents.createdAt, fromD.toISOString()), lte(schema.analyticsEvents.createdAt, toD.toISOString()))).all();
+  const rows = await db().select().from(schema.analyticsEvents).where(and(eq(schema.analyticsEvents.eventId, eventId), gte(schema.analyticsEvents.createdAt, fromD.toISOString()), lte(schema.analyticsEvents.createdAt, toD.toISOString()))).all();
   const totals: Record<string, number> = {};
   const sessions = new Set<string>();
   const byDay = new Map<string, { views: number; sessions: Set<string>; searches: number; routes: number }>();
@@ -85,9 +85,9 @@ export function analyticsSummary(eventId: string, from?: string, to?: string): A
       heat.set(key, h);
     }
   }
-  const exName = new Map(db().select({ id: schema.exhibitors.id, name: schema.exhibitors.name }).from(schema.exhibitors).where(eq(schema.exhibitors.eventId, eventId)).all().map((e) => [e.id, e.name]));
-  const boothLabel = new Map(db().select({ id: schema.booths.id, label: schema.booths.label }).from(schema.booths).where(eq(schema.booths.eventId, eventId)).all().map((b) => [b.id, b.label]));
-  const catName = new Map(db().select({ id: schema.categories.id, name: schema.categories.name }).from(schema.categories).where(eq(schema.categories.eventId, eventId)).all().map((c) => [c.id, c.name]));
+  const exName = new Map((await db().select({ id: schema.exhibitors.id, name: schema.exhibitors.name }).from(schema.exhibitors).where(eq(schema.exhibitors.eventId, eventId)).all()).map((e) => [e.id, e.name]));
+  const boothLabel = new Map((await db().select({ id: schema.booths.id, label: schema.booths.label }).from(schema.booths).where(eq(schema.booths.eventId, eventId)).all()).map((b) => [b.id, b.label]));
+  const catName = new Map((await db().select({ id: schema.categories.id, name: schema.categories.name }).from(schema.categories).where(eq(schema.categories.eventId, eventId)).all()).map((c) => [c.id, c.name]));
   const top = <T,>(m: Map<string, T>, score: (v: T) => number, n = 10) => [...m.entries()].sort((a, b) => score(b[1]) - score(a[1])).slice(0, n);
   return {
     range: { from: fromD.toISOString(), to: toD.toISOString() },
@@ -104,8 +104,8 @@ export function analyticsSummary(eventId: string, from?: string, to?: string): A
   };
 }
 
-export function exhibitorAnalytics(eventId: string, exhibitorId: string) {
-  const rows = db().select().from(schema.analyticsEvents).where(and(eq(schema.analyticsEvents.eventId, eventId), eq(schema.analyticsEvents.targetId, exhibitorId))).all();
+export async function exhibitorAnalytics(eventId: string, exhibitorId: string) {
+  const rows = await db().select().from(schema.analyticsEvents).where(and(eq(schema.analyticsEvents.eventId, eventId), eq(schema.analyticsEvents.targetId, exhibitorId))).all();
   const byDay = new Map<string, number>();
   const totals: Record<string, number> = {};
   for (const r of rows) { totals[r.type] = (totals[r.type] ?? 0) + 1; if (r.type === "exhibitor_view") byDay.set(r.createdAt.slice(0, 10), (byDay.get(r.createdAt.slice(0, 10)) ?? 0) + 1); }

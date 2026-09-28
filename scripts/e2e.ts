@@ -34,6 +34,7 @@ function floorPlanPdf(): Buffer {
     labels.push(label);
     content += `${x} ${y} ${w} ${h} re S\n`;
     content += `BT /F1 12 Tf ${x + 34} ${y + 30} Td (${label}) Tj ET\n`;
+    if (label === "A1") content += `BT /F1 9 Tf ${x + 18} ${y + 14} Td (Acme Corp) Tj ET\n`;
   }
   content += "BT /F1 18 Tf 60 520 Td (Hall 3 - North) Tj ET\n";
   const objects = [
@@ -210,6 +211,23 @@ async function main() {
     await wp.fill("input[placeholder='0.0299']", "0.0299");
     await wp.fill("input[placeholder='ExCeL London']", "ExCeL London");
     await wp.waitForTimeout(4000);
+    // Shape the hall on the map: push the east wall out, then pull a new corner out of the north wall.
+    const box = await wp.locator(".maplibregl-canvas").boundingBox();
+    if (!box) failures.push("venue map canvas missing");
+    else {
+      const widthBefore = Number(await wp.inputValue("text=Width (m) >> xpath=.. >> input"));
+      const cx = box.x + box.width / 2, cy = box.y + box.height / 2;
+      // MapLibre zoom levels are defined on 512 px tiles: 78271.5 m/px at zoom 0 on the equator. The map flies to zoom 16.5.
+      const mPerPx = (78271.517 * Math.cos((51.5083 * Math.PI) / 180)) / Math.pow(2, 16.5);
+      const halfW = 100 / mPerPx, halfH = 60 / mPerPx;
+      await wp.mouse.move(cx + halfW, cy + halfH / 2); await wp.mouse.down(); await wp.mouse.move(cx + halfW + 40, cy + halfH / 2, { steps: 8 }); await wp.mouse.up();
+      const widthAfter = Number(await wp.inputValue("text=Width (m) >> xpath=.. >> input"));
+      if (!(widthAfter > widthBefore + 10)) failures.push(`dragging the east wall: width ${widthBefore} → ${widthAfter}`);
+      // The east wall moved out, so the north side's midpoint moved right by half of that.
+      const midX = cx + (widthAfter - widthBefore) / mPerPx / 2;
+      await wp.mouse.move(midX, cy - halfH); await wp.mouse.down(); await wp.mouse.move(midX, cy - halfH - 35, { steps: 8 }); await wp.mouse.up();
+      if (!(await wp.getByText("5 corners").count())) failures.push("dragging a side's midpoint did not add a corner");
+    }
     await shot(wp, "wizard-venue");
     await wp.getByRole("button", { name: "Continue" }).click();
     // Raster plan first: a 4 × 5 grid drawn in the browser.
@@ -227,8 +245,9 @@ async function main() {
     // Then the vector PDF: labels must come from the drawing's text.
     await wp.setInputFiles("input[type='file']", { name: "hall-3.pdf", mimeType: "application/pdf", buffer: floorPlanPdf() });
     await wp.waitForSelector("text=/18 booths drafted/", { timeout: 60000 }).catch(() => failures.push("pdf auto-draft did not find 18 booths"));
-    const named = await wp.textContent("text=/named from the drawing/").catch(() => "");
-    if (!/18 named from the drawing/.test(named ?? "")) failures.push(`pdf labels: ${named}`);
+    const vec = await wp.textContent("text=/Read from the PDF's drawing/").catch(() => "");
+    if (!/18 with a stand number · 1 with a name/.test(vec ?? "")) failures.push(`pdf vector reading: ${vec}`);
+    if (!(await wp.getByText("Create 1 exhibitor from the plan").count())) failures.push("no option to create exhibitors from names on the plan");
     await shot(wp, "wizard-plan");
     await wp.getByRole("button", { name: "Continue" }).click();
     await shot(wp, "wizard-sales");
@@ -246,6 +265,13 @@ async function main() {
       const bo = (await (await ap.request.get(`${base}/api/v1/events/${created.id}/booths?limit=100`)).json()).data ?? [];
       const labels = bo.map((b: { label: string }) => b.label).sort();
       if (bo.length !== 18 || !labels.includes("A1") || !labels.includes("C6")) failures.push(`wizard booths: ${bo.length} ${labels.slice(0, 6).join(",")}`);
+      const a1 = bo.find((b: { label: string }) => b.label === "A1") as { status: string } | undefined;
+      if (a1?.status !== "sold") failures.push(`A1 should be sold to the exhibitor named on the plan, is ${a1?.status}`);
+      const exs = (await (await ap.request.get(`${base}/api/v1/events/${created.id}/exhibitors`)).json()).data ?? [];
+      if (!exs.some((e: { name: string; boothLabels: string[] }) => e.name === "Acme Corp" && e.boothLabels.includes("A1"))) failures.push(`exhibitor from the plan: ${JSON.stringify(exs).slice(0, 200)}`);
+      const els = (await (await ap.request.get(`${base}/api/v1/events/${created.id}/elements`)).json()).data ?? [];
+      const wall = els.find((e: { kind: string; props: { name?: string } }) => e.kind === "wall" && e.props?.name === "Hall outline") as { geometry: { points: number[][] } } | undefined;
+      if (!wall || wall.geometry.points.length !== 6) failures.push(`hall outline wall: ${JSON.stringify(wall).slice(0, 160)}`);
       const bookPage = await ctx.newPage(); watch(bookPage, "wizard-booking");
       await bookPage.goto(`${base}/e/${created.slug}/book?preview=1`, { waitUntil: "networkidle", timeout: 90000 }).catch(() => undefined);
       await bookPage.waitForTimeout(6000);
@@ -253,6 +279,23 @@ async function main() {
       await bookPage.close();
     }
     await wp.close();
+
+    // A real customer plan (NAB Show North Hall), when provided: NAB_PDF=/path/to/file.pdf
+    if (process.env.NAB_PDF && fs.existsSync(process.env.NAB_PDF)) {
+      const np = await ctx.newPage(); watch(np, "wizard-nab");
+      await np.goto(`${base}/admin/events/new`, { waitUntil: "networkidle" });
+      await np.fill("input[placeholder='Grip Connect 2027']", "NAB Show 2027 North Hall");
+      await np.getByRole("button", { name: "Continue" }).click();
+      await np.fill("input[placeholder='51.5083']", "36.1330"); await np.fill("input[placeholder='0.0299']", "-115.1510");
+      await np.getByRole("button", { name: "Continue" }).click();
+      await np.setInputFiles("input[type='file']", process.env.NAB_PDF);
+      await np.waitForSelector("text=/\\d+ booths drafted/", { timeout: 60000 });
+      const summary = await np.textContent("text=/Read from the PDF's drawing/").catch(() => null);
+      console.log("✓ NAB plan:", summary?.trim());
+      if (!summary || Number(summary.match(/(\d+) with a stand number/)?.[1]) < 150) failures.push(`NAB plan reading: ${summary}`);
+      await shot(np, "wizard-nab-plan");
+      await np.close();
+    }
     await ap.close();
     await browser.close();
   } finally {

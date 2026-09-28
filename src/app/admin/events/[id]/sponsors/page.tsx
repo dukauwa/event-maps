@@ -12,8 +12,8 @@ export default async function SponsorsPage({ params }: { params: Promise<{ id: s
   return (
     <SponsorsManager
       event={{ id: event.id, name: event.name, timezone: event.timezone, exhibitors: event.settings.terms.exhibitors }}
-      banners={listBanners(event.id)}
-      exhibitors={listExhibitors(event.id).map((e) => ({ id: e.id, name: e.name, logoUrl: e.logoUrl, featured: e.featured, sponsorLevel: e.sponsorLevel ?? null, boothLabels: e.boothLabels }))}
+      banners={await listBanners(event.id)}
+      exhibitors={(await listExhibitors(event.id)).map((e) => ({ id: e.id, name: e.name, logoUrl: e.logoUrl, featured: e.featured, sponsorLevel: e.sponsorLevel ?? null, boothLabels: e.boothLabels }))}
     />
   );
 }

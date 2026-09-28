@@ -1,30 +1,53 @@
-import Database from "better-sqlite3";
-import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
-import { migrate } from "drizzle-orm/better-sqlite3/migrator";
+/**
+ * Database access. One libSQL client per process, shared by every request:
+ *
+ * - Local dev, tests and Docker: a SQLite file (`DATABASE_PATH`, default `data/app.db`) through libSQL's native driver.
+ * - Serverless (Vercel): a hosted libSQL database (Turso) over HTTP, from `TURSO_DATABASE_URL` + `TURSO_AUTH_TOKEN`.
+ *   Each serverless function is its own process with its own /tmp, so a file database there is private to one
+ *   function: an event created through the API would not exist for the page that renders it. A hosted database
+ *   is the only correct setup on those platforms; the /tmp fallback remains for smoke tests and is flagged in the UI.
+ *
+ * Migrations and the one-time demo seed run once per process behind a gate that every query awaits.
+ */
+import { createRequire } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
+import type { Client } from "@libsql/client";
+import { createClient as createHttpClient } from "@libsql/client/http";
+import { drizzle } from "drizzle-orm/libsql/http";
+import type { LibSQLDatabase } from "drizzle-orm/libsql/driver-core";
+import { migrate } from "drizzle-orm/libsql/migrator";
+import { eq } from "drizzle-orm";
 import * as schema from "./schema";
 import { isSeeded, seedDemo } from "@/lib/seed/demo";
 import { publishEvent } from "@/lib/bundle";
 
-/** First run: populate the demo event so `pnpm dev` works with zero setup. */
-function autoSeed(d: DB) {
-  if (isSeeded(d)) return;
-  const r = seedDemo(d);
-  publishEvent(d, r.eventId, "Initial publish");
-  console.log(`[tessera] seeded demo data${isEphemeralStorage() ? " into ephemeral storage (resets when the instance recycles)" : ""}. Organiser login: ${r.adminEmail} / ${r.adminPassword}`);
+export type DB = LibSQLDatabase<typeof schema>;
+
+const globalForDb = globalThis as unknown as { __tesseraDb?: DB; __tesseraReady?: Promise<void> | null };
+
+/** Hosted database settings. Accepts the names the Vercel ↔ Turso integration injects and a few generic ones. */
+export function remoteDatabase(): { url: string; authToken?: string } | null {
+  const e = process.env;
+  const url = e.TURSO_DATABASE_URL || e.TURSO_URL || e.LIBSQL_URL || (e.DATABASE_URL && /^(libsql|https?|wss?):\/\//.test(e.DATABASE_URL) ? e.DATABASE_URL : "");
+  if (!url) return null;
+  return { url, authToken: e.TURSO_AUTH_TOKEN || e.LIBSQL_AUTH_TOKEN || e.DATABASE_AUTH_TOKEN || undefined };
 }
 
-export type DB = BetterSQLite3Database<typeof schema>;
-
-const globalForDb = globalThis as unknown as { __tesseraDb?: DB; __tesseraSqlite?: Database.Database };
+function onServerless(): boolean {
+  return !!(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.NETLIFY);
+}
 
 /**
- * Serverless platforms (Vercel, Lambda) ship a read-only filesystem with only /tmp writable,
- * and /tmp is wiped whenever the instance recycles. Good enough to demo; not for real data.
+ * True when data lives in a per-instance /tmp file: fine for a smoke test, but each serverless function sees its own
+ * copy and everything resets when the instance recycles.
  */
 export function isEphemeralStorage(): boolean {
-  return !process.env.DATABASE_PATH && !!(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.NETLIFY);
+  return !remoteDatabase() && !process.env.DATABASE_PATH && onServerless();
+}
+
+export function storageMode(): "hosted" | "file" | "ephemeral" {
+  return remoteDatabase() ? "hosted" : isEphemeralStorage() ? "ephemeral" : "file";
 }
 
 export function getDbPath(): string {
@@ -33,39 +56,114 @@ export function getDbPath(): string {
   return path.join(process.cwd(), "data", "app.db");
 }
 
-function open(): DB {
-  const dbPath = getDbPath();
-  if (dbPath !== ":memory:") fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-  const sqlite = new Database(dbPath);
-  // WAL needs a shared-memory file, which some serverless sandboxes disallow.
-  sqlite.pragma(isEphemeralStorage() ? "journal_mode = MEMORY" : "journal_mode = WAL");
-  sqlite.pragma("foreign_keys = ON");
-  sqlite.pragma("busy_timeout = 5000");
-  const db = drizzle(sqlite, { schema });
-  migrate(db, { migrationsFolder: path.join(process.cwd(), "drizzle") });
-  globalForDb.__tesseraSqlite = sqlite;
-  if (process.env.AUTO_SEED !== "0") autoSeed(db);
-  return db;
+function createFileClient(file: string): Client {
+  // Loaded lazily: the native driver is only needed (and only bundled) where a local file is used.
+  const require_ = createRequire(path.join(process.cwd(), "package.json"));
+  const { createClient } = require_("@libsql/client/sqlite3") as typeof import("@libsql/client/sqlite3");
+  // `timeout` is the busy timeout of every pooled connection (a PRAGMA would only reach the first one).
+  return createClient({ url: file === ":memory:" ? ":memory:" : `file:${file}`, timeout: 5000 });
 }
 
-/** Process-wide singleton (survives Next.js HMR). Migrations run on first open. */
+function createRawClient(): { client: Client; file: boolean } {
+  const remote = remoteDatabase();
+  if (remote) return { client: createHttpClient({ url: remote.url, authToken: remote.authToken }), file: false };
+  const file = getDbPath();
+  if (file !== ":memory:") fs.mkdirSync(path.dirname(file), { recursive: true });
+  return { client: createFileClient(file), file: true };
+}
+
+const MIGRATIONS = () => path.join(process.cwd(), "drizzle");
+
+async function prepare(raw: Client, file: boolean): Promise<void> {
+  // WAL lets the dev server, seed scripts and tests read while another process writes.
+  if (file) await raw.execute(isEphemeralStorage() ? "PRAGMA journal_mode = MEMORY" : "PRAGMA journal_mode = WAL");
+  const d = drizzle(raw, { schema });
+  try {
+    await migrate(d, { migrationsFolder: MIGRATIONS() });
+  } catch (e) {
+    // Two cold instances can race on the first migration of a shared database; the loser retries once and finds it applied.
+    await new Promise((r) => setTimeout(r, 1500));
+    await migrate(d, { migrationsFolder: MIGRATIONS() }).catch(() => { throw e; });
+  }
+  if (process.env.AUTO_SEED !== "0") await autoSeed(d);
+}
+
+const SEED_LOCK = "demo-seed";
+const SEED_WAIT_MS = 120_000;
+const SEED_STALE_MS = 5 * 60_000;
+
+/** First run: populate the demo event so a fresh deployment works with zero setup. Safe when many instances start at once. */
+async function autoSeed(d: DB): Promise<void> {
+  if (await isSeeded(d)) return;
+  const nowIso = () => new Date().toISOString();
+  const claim = await d.insert(schema.appMeta).values({ key: SEED_LOCK, value: "running", updatedAt: nowIso() }).onConflictDoNothing().run();
+  if (claim.rowsAffected === 0) {
+    // Another instance holds the lock: wait for it, or take over if it died mid-seed.
+    const t0 = Date.now();
+    while (Date.now() - t0 < SEED_WAIT_MS) {
+      const lock = await d.select().from(schema.appMeta).where(eq(schema.appMeta.key, SEED_LOCK)).get();
+      if (!lock || lock.value === "done") return;
+      if (Date.now() - Date.parse(lock.updatedAt) > SEED_STALE_MS) break;
+      await new Promise((r) => setTimeout(r, 750));
+    }
+    if (await isSeeded(d)) return;
+    await d.update(schema.appMeta).set({ value: "running", updatedAt: nowIso() }).where(eq(schema.appMeta.key, SEED_LOCK)).run();
+  }
+  const r = await seedDemo(d);
+  await publishEvent(d, r.eventId, "Initial publish");
+  await d.update(schema.appMeta).set({ value: "done", updatedAt: nowIso() }).where(eq(schema.appMeta.key, SEED_LOCK)).run();
+  console.log(`[tessera] seeded demo data (${storageMode()} storage). Organiser login: ${r.adminEmail} / ${r.adminPassword}`);
+}
+
+const GATED = new Set<PropertyKey>(["execute", "batch", "migrate", "executeMultiple", "transaction"]);
+
+/** Wraps a client so every call first waits for migrations + seed; the preparation itself uses the raw client. */
+function gated(raw: Client, ready: () => Promise<void>): Client {
+  return new Proxy(raw, {
+    get(target, prop, receiver) {
+      const v: unknown = Reflect.get(target, prop, receiver);
+      if (typeof v !== "function") return v;
+      const fn = v as (...a: unknown[]) => unknown;
+      if (GATED.has(prop)) return async (...args: unknown[]) => { await ready(); return fn.apply(target, args); };
+      return fn.bind(target);
+    },
+  });
+}
+
+function open(): DB {
+  const { client, file } = createRawClient();
+  const ready = () => {
+    if (!globalForDb.__tesseraReady) {
+      // A failed preparation (network blip, lost migration race) is retried by the next query rather than cached.
+      globalForDb.__tesseraReady = prepare(client, file).catch((e: unknown) => { globalForDb.__tesseraReady = null; throw e; });
+    }
+    return globalForDb.__tesseraReady;
+  };
+  return drizzle(gated(client, ready), { schema });
+}
+
+/** Process-wide singleton (survives Next.js HMR). Synchronous; the first query waits for migrations and the seed. */
 export function db(): DB {
   if (!globalForDb.__tesseraDb) globalForDb.__tesseraDb = open();
   return globalForDb.__tesseraDb;
 }
 
-/** For tests: open an isolated in-memory database. */
-export function openTestDb(): DB {
-  const sqlite = new Database(":memory:");
-  sqlite.pragma("foreign_keys = ON");
-  const d = drizzle(sqlite, { schema });
-  migrate(d, { migrationsFolder: path.join(process.cwd(), "drizzle") });
+/** Resolves once migrations and the demo seed have run. */
+export async function dbReady(): Promise<void> {
+  await db().run("select 1");
+}
+
+/** For tests: an isolated in-memory database, migrated, not seeded. */
+export async function openTestDb(): Promise<DB> {
+  const d = drizzle(createFileClient(":memory:"), { schema });
+  await migrate(d, { migrationsFolder: MIGRATIONS() });
   return d;
 }
 
-/** Replace the singleton (tests). */
+/** Replace the singleton (tests, seed script). */
 export function setDb(d: DB | undefined) {
   globalForDb.__tesseraDb = d;
+  globalForDb.__tesseraReady = d ? Promise.resolve() : null;
 }
 
 export { schema };

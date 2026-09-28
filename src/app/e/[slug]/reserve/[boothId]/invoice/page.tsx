@@ -8,11 +8,11 @@ import { formatMoney } from "@/lib/pricing";
 export default async function InvoicePage({ params, searchParams }: { params: Promise<{ slug: string; boothId: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
   const { slug, boothId } = await params;
   const { order: orderId } = await searchParams;
-  const event = findEventBySlugOrId(db(), slug);
+  const event = await findEventBySlugOrId(db(), slug);
   if (!event || !orderId) notFound();
-  let order = getOrder(event.id, orderId);
+  let order = await getOrder(event.id, orderId);
   if (!order || order.boothId !== boothId) notFound();
-  if (order.status === "hold") order = markOrderInvoiced(event, order.id);
+  if (order.status === "hold") order = (await markOrderInvoiced(event, order.id));
   return (
     <main className="mx-auto max-w-lg px-4 py-16">
       <h1 className="text-xl font-semibold">Thanks, we&apos;ll invoice you</h1>

@@ -37,11 +37,17 @@ function sample(alphabet: string, length: number, next: () => number): string {
 export function withDeterministicIds<T>(seed: number, fn: () => T): T {
   const previous = rng;
   rng = mulberry32(seed);
+  let result: T;
   try {
-    return fn();
-  } finally {
+    result = fn();
+  } catch (e) {
     rng = previous;
+    throw e;
   }
+  // Async seeding: keep the deterministic sequence until the whole run settles.
+  if (result instanceof Promise) return result.finally(() => { rng = previous; }) as T;
+  rng = previous;
+  return result;
 }
 
 export function newId(prefix: IdPrefix): string {

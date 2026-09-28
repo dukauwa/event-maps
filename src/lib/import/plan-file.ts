@@ -5,6 +5,7 @@
  * Everything here needs a DOM (canvas, Image, pdf.js) and is imported dynamically by the wizard.
  */
 import type { RasterImage, TextItem } from "./raster-booths";
+import { extractPathShapes, type PathShape } from "./pdf-vector";
 
 export interface LoadedPlan {
   /** Rendered page, ready to upload as the level background. */
@@ -13,6 +14,8 @@ export interface LoadedPlan {
   height: number;
   /** Text runs in canvas pixel space (vector PDFs only). */
   texts: TextItem[];
+  /** Closed vector paths in canvas pixel space (PDFs only): exact booth outlines when the plan was drawn, not scanned. */
+  shapes?: PathShape[];
   /** Page count for PDFs, 1 otherwise. */
   pages: number;
   page: number;
@@ -90,7 +93,9 @@ export async function loadPdf(data: ArrayBuffer, pageNumber = 1): Promise<Loaded
     const h = fontPx * scale;
     texts.push({ text: item.str, x: Math.min(x0, x1), y: yBase - h, w: Math.abs(x1 - x0) || item.str.length * h * 0.5, h });
   }
-  const out: LoadedPlan = { canvas, width: canvas.width, height: canvas.height, texts, pages: doc.numPages, page: page.pageNumber, kind: "pdf" };
+  const ol = await page.getOperatorList();
+  const shapes = extractPathShapes(ol.fnArray, ol.argsArray, pdfjs.OPS as unknown as Parameters<typeof extractPathShapes>[2], viewport.transform);
+  const out: LoadedPlan = { canvas, width: canvas.width, height: canvas.height, texts, shapes, pages: doc.numPages, page: page.pageNumber, kind: "pdf" };
   await task.destroy();
   return out;
 }
@@ -100,6 +105,22 @@ export function imageDataOf(canvas: HTMLCanvasElement): RasterImage {
   if (!ctx) throw new Error("Canvas unavailable");
   const d = ctx.getImageData(0, 0, canvas.width, canvas.height);
   return { width: d.width, height: d.height, data: d.data };
+}
+
+/**
+ * Encode the rendered plan for upload. Serverless hosts cap request bodies at ~4.5 MB, and a plan with a photographic
+ * background renders to a large PNG: keep PNG (crisp lines) when it fits, else WebP, else progressively lighter JPEG.
+ */
+export async function encodeForUpload(canvas: HTMLCanvasElement, maxBytes = 3_500_000): Promise<Blob> {
+  const png = await canvasToBlob(canvas, "image/png");
+  if (png.size <= maxBytes) return png;
+  const webp = await canvasToBlob(canvas, "image/webp", 0.88);
+  if (webp.type === "image/webp" && webp.size <= maxBytes) return webp;
+  for (const q of [0.85, 0.7, 0.55]) {
+    const jpg = await canvasToBlob(canvas, "image/jpeg", q);
+    if (jpg.size <= maxBytes) return jpg;
+  }
+  return canvasToBlob(canvas, "image/jpeg", 0.4);
 }
 
 export function canvasToBlob(canvas: HTMLCanvasElement, type = "image/png", quality?: number): Promise<Blob> {

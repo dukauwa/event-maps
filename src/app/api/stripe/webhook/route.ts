@@ -22,8 +22,8 @@ export async function POST(req: Request) {
   if (evt.type === "checkout.session.completed" || evt.type === "checkout.session.async_payment_succeeded") {
     const s = evt.data.object;
     const orderId = s.metadata?.orderId ?? s.client_reference_id;
-    const event = s.metadata?.eventId ? findEventBySlugOrId(db(), s.metadata.eventId) : null;
-    if (event && orderId) markOrderPaid(event, orderId, s.id);
+    const event = s.metadata?.eventId ? await findEventBySlugOrId(db(), s.metadata.eventId) : null;
+    if (event && orderId) await markOrderPaid(event, orderId, s.id);
   }
   return NextResponse.json({ received: true });
 }

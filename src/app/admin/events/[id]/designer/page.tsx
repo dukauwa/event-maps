@@ -12,12 +12,12 @@ export default async function DesignerPage({ params }: { params: Promise<{ id: s
   const { id } = await params;
   const user = await requireUser().catch((e: unknown) => { if (e instanceof AuthError) return null; throw e; });
   if (!user) redirect(`/login?next=${encodeURIComponent(`/admin/events/${id}/designer`)}`);
-  const event = getEvent(user.orgId, id);
+  const event = await getEvent(user.orgId, id);
   if (!event) notFound();
-  const bundle = buildBundle(db(), event.id);
+  const bundle = await buildBundle(db(), event.id);
   if (!bundle) notFound();
   // The public bundle omits notes and carries *resolved* prices; the editor needs the raw overrides.
-  const rows = db().select({ id: schema.booths.id, notes: schema.booths.notes, priceCents: schema.booths.priceCents }).from(schema.booths).where(eq(schema.booths.eventId, event.id)).all();
+  const rows = await db().select({ id: schema.booths.id, notes: schema.booths.notes, priceCents: schema.booths.priceCents }).from(schema.booths).where(eq(schema.booths.eventId, event.id)).all();
   const notes: Record<string, string | null> = {};
   const priceOverrides: Record<string, number | null> = {};
   for (const r of rows) { notes[r.id] = r.notes; priceOverrides[r.id] = r.priceCents; }

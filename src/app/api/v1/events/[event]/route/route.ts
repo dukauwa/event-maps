@@ -28,9 +28,9 @@ export function parseEndpoint(raw: string, levelIds: { id: string; shortName: st
 
 /** Public server-side routing: `?from=booth:A101&to=booth:B205&accessible=1&via=booth:C301`. Uses the published plan. */
 export const GET = withApi(async (req: Request, ctx: { params: Promise<{ event: string }> }) => {
-  const event = findEventBySlugOrId(db(), (await ctx.params).event);
+  const event = await findEventBySlugOrId(db(), (await ctx.params).event);
   if (!event) throw notFound("event");
-  const bundle = getViewerBundle(db(), event.id, false) ?? getViewerBundle(db(), event.id, true);
+  const bundle = (await getViewerBundle(db(), event.id, false)) ?? (await getViewerBundle(db(), event.id, true));
   if (!bundle) throw notFound("floor plan");
   const q = new URL(req.url).searchParams;
   const from = q.get("from"), to = q.get("to");

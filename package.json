@@ -18,8 +18,8 @@
     "build:assets": "tsx scripts/prepare-assets.ts"
   },
   "dependencies": {
+    "@libsql/client": "^0.18.0",
     "@turf/turf": "7.4.0",
-    "better-sqlite3": "13.0.3",
     "drizzle-orm": "0.45.2",
     "jose": "^6.2.12",
     "maplibre-gl": "6.9.0",
@@ -33,7 +33,6 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/better-sqlite3": "^9.6.0",
     "@types/geojson": "7946.0.16",
     "@types/node": "^20",
     "@types/qrcode": "^1.5.6",

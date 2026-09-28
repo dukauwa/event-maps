@@ -18,24 +18,24 @@ export const bannerInput = z.object({
 });
 export type BannerInput = z.infer<typeof bannerInput>;
 
-export function listBanners(eventId: string) {
-  return db().select().from(schema.banners).where(eq(schema.banners.eventId, eventId)).all();
+export async function listBanners(eventId: string) {
+  return await db().select().from(schema.banners).where(eq(schema.banners.eventId, eventId)).all();
 }
-export function createBanner(eventId: string, input: BannerInput) {
+export async function createBanner(eventId: string, input: BannerInput) {
   const id = newId("ba");
-  db().insert(schema.banners).values({ id, eventId, ...input, placement: input.placement ?? "search_top", active: input.active ?? true, weight: input.weight ?? 1 }).run();
-  return db().select().from(schema.banners).where(eq(schema.banners.id, id)).get()!;
+  await db().insert(schema.banners).values({ id, eventId, ...input, placement: input.placement ?? "search_top", active: input.active ?? true, weight: input.weight ?? 1 }).run();
+  return (await db().select().from(schema.banners).where(eq(schema.banners.id, id)).get())!;
 }
-export function updateBanner(eventId: string, id: string, patch: Partial<BannerInput>) {
-  const b = db().select().from(schema.banners).where(and(eq(schema.banners.id, id), eq(schema.banners.eventId, eventId))).get();
+export async function updateBanner(eventId: string, id: string, patch: Partial<BannerInput>) {
+  const b = await db().select().from(schema.banners).where(and(eq(schema.banners.id, id), eq(schema.banners.eventId, eventId))).get();
   if (!b) throw notFound("banner");
-  db().update(schema.banners).set(patch).where(eq(schema.banners.id, id)).run();
-  return db().select().from(schema.banners).where(eq(schema.banners.id, id)).get()!;
+  await db().update(schema.banners).set(patch).where(eq(schema.banners.id, id)).run();
+  return (await db().select().from(schema.banners).where(eq(schema.banners.id, id)).get())!;
 }
-export function deleteBanner(eventId: string, id: string) {
-  db().delete(schema.banners).where(and(eq(schema.banners.id, id), eq(schema.banners.eventId, eventId))).run();
+export async function deleteBanner(eventId: string, id: string) {
+  await db().delete(schema.banners).where(and(eq(schema.banners.id, id), eq(schema.banners.eventId, eventId))).run();
 }
-export function countBanner(id: string, kind: "impression" | "click") {
-  if (kind === "impression") db().update(schema.banners).set({ impressions: sql`${schema.banners.impressions} + 1` }).where(eq(schema.banners.id, id)).run();
-  else db().update(schema.banners).set({ clicks: sql`${schema.banners.clicks} + 1` }).where(eq(schema.banners.id, id)).run();
+export async function countBanner(id: string, kind: "impression" | "click") {
+  if (kind === "impression") await db().update(schema.banners).set({ impressions: sql`${schema.banners.impressions} + 1` }).where(eq(schema.banners.id, id)).run();
+  else await db().update(schema.banners).set({ clicks: sql`${schema.banners.clicks} + 1` }).where(eq(schema.banners.id, id)).run();
 }

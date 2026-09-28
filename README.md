@@ -37,8 +37,9 @@ pnpm seed:reset     # wipe data/app.db and re-seed
 
 | Variable | Purpose |
 | --- | --- |
-| `DATABASE_PATH` | SQLite file (default `./data/app.db`). |
-| `UPLOADS_DIR` | Media uploads (default `./data/uploads`). |
+| `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` | Hosted libSQL database (Turso). Required on serverless hosts; the Vercel ↔ Turso integration sets both. |
+| `DATABASE_PATH` | Local SQLite file when no hosted database is set (default `./data/app.db`). |
+| `UPLOADS_DIR` | Where uploads were written before they moved into the database; still read for those files. |
 | `APP_URL` | Public origin used in links and checkout redirects. |
 | `AUTH_SECRET` | Signs session cookies. Set it on any shared deployment; the fallback key is public. |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | Enable Stripe Checkout (`provider: stripe` in Sales settings). Webhook URL: `/api/stripe/webhook`. |
@@ -47,9 +48,11 @@ pnpm seed:reset     # wipe data/app.db and re-seed
 
 ## Deploy it
 
-**Vercel (quickest look).** Import the repository at [vercel.com/new](https://vercel.com/new) and deploy with no configuration; the demo event seeds itself on first request. Vercel's filesystem is read-only apart from `/tmp`, so the database lives there. The demo seeds itself identically on every instance, and sessions are signed cookies rather than database rows, so signing in and sharing links work across instances. What does not survive is **writes**: a booth you reserve disappears when that instance recycles. Good for clicking through the product, wrong for a shared trial where bookings must stick.
+**Vercel.** Import the repository at [vercel.com/new](https://vercel.com/new), then connect a database: in the project, **Storage → Create Database → Turso** (free tier), connect it to the project, and redeploy. The integration sets `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`; on the first request the app migrates the database and seeds the demo event (once, even when several instances start together). Uploaded images are stored in the database too, so every page and API route sees the same data.
 
-**Docker (persistent).** One container, one SQLite file on a volume. Runs on Fly.io, Railway, Render, or any VM.
+Without a connected database the app still starts, but every serverless function keeps its own copy of the data in `/tmp`: an event created through the API is missing on the page that renders it, and everything resets when an instance recycles. The organiser portal shows a warning while that is the case.
+
+**Docker.** One container, one SQLite file on a volume (or point it at Turso with the two variables above). Runs on Fly.io, Railway, Render, or any VM.
 
 ```bash
 docker build -t tessera .
@@ -61,7 +64,7 @@ Set `APP_URL` on any real deployment so share links, QR codes and checkout redir
 ## Architecture
 
 - **Next.js 16 (App Router), React 19, TypeScript strict, Tailwind 4.** Server components read through `src/lib/services/*`; client components mutate through `/api/v1`.
-- **Drizzle ORM on SQLite** (`better-sqlite3`, WAL). Schema in `src/lib/db/schema.ts`, migrations in `drizzle/`. Swapping to Postgres is a driver change.
+- **Drizzle ORM on libSQL**: a local SQLite file (WAL) in development and Docker, Turso over HTTP on serverless hosts. All queries are async; migrations and the demo seed run before the first query. Schema in `src/lib/db/schema.ts`, migrations in `drizzle/`.
 - **Plan coordinates are metres** (x right, y down). Each level may carry a georeference (origin lat/lng, rotation) so the plan renders on an open basemap (OpenFreeMap) with self-hosted glyphs. No Google Maps or Mapbox keys.
 - **Routing** (`src/lib/routing`): A* over an aisle network with accessible/one-way edges and inter-level transitions, connector snapping, turn instructions, multi-stop optimisation (nearest neighbour + 2-opt) and automatic network generation from booth/wall geometry.
 - **Publishing** snapshots the event into an immutable bundle (`floorplan_versions`) served at `/e/{slug}/data.json`; the viewer polls `version.json` and hot-reloads.

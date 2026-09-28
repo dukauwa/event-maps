@@ -3,5 +3,5 @@ import { deleteTransition, transitionInput, updateTransition } from "@/lib/servi
 
 type Ctx = { params: Promise<{ event: string; id: string }> };
 export const OPTIONS = () => optionsResponse();
-export const PATCH = withApi(async (req: Request, ctx: Ctx) => { const p = await ctx.params; const { event } = await requireEvent(req, p.event, "write"); return ok(updateTransition(event.id, p.id, await parseBody(req, transitionInput.partial()))); });
-export const DELETE = withApi(async (req: Request, ctx: Ctx) => { const p = await ctx.params; const { event } = await requireEvent(req, p.event, "write"); deleteTransition(event.id, p.id); return ok({ deleted: true }); });
+export const PATCH = withApi(async (req: Request, ctx: Ctx) => { const p = await ctx.params; const { event } = await requireEvent(req, p.event, "write"); return ok(await updateTransition(event.id, p.id, await parseBody(req, transitionInput.partial()))); });
+export const DELETE = withApi(async (req: Request, ctx: Ctx) => { const p = await ctx.params; const { event } = await requireEvent(req, p.event, "write"); await deleteTransition(event.id, p.id); return ok({ deleted: true }); });

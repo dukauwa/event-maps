@@ -8,7 +8,7 @@
  *
  * Pure functions over RGBA pixel data, so this runs in node tests and in the browser.
  */
-import type { Polygon } from "@/lib/domain/types";
+import type { Point, Polygon } from "@/lib/domain/types";
 import { round } from "@/lib/domain/geometry";
 
 export interface RasterImage { width: number; height: number; data: Uint8ClampedArray | Uint8Array }
@@ -40,9 +40,14 @@ export interface TextItem { text: string; x: number; y: number; w: number; h: nu
 
 export interface DraftBooth {
   label: string;
-  /** Pixel-space rectangle. */
+  /** Pixel-space bounding rectangle. */
   rect: { x: number; y: number; w: number; h: number };
+  /** Exact outline in pixels when known (vector PDFs); otherwise the rectangle is the booth. */
+  polygon?: Point[];
   labelSource: "text" | "auto";
+  /** Text printed inside the booth besides its number: an exhibitor, or the name of a space ("N141: Main Stage"). */
+  name?: string;
+  nameKind?: "exhibitor" | "space";
 }
 
 const DEFAULTS: Required<DetectOptions> = { inkThreshold: 150, minAreaPx: 150, maxAreaFraction: 0.1, minFill: 0.72, maxAspect: 6, minSidePx: 6 };
@@ -181,6 +186,12 @@ export interface PlanTransform {
   scale: number;
   offsetX?: number;
   offsetY?: number;
+}
+
+/** Convert a pixel outline to a plan polygon (metres, y down), snapped to centimetres. */
+export function pointsToPlan(points: Point[], t: PlanTransform): Polygon {
+  const ox = t.offsetX ?? 0, oy = t.offsetY ?? 0;
+  return points.map(([x, y]) => [round(ox + x * t.scale, 2), round(oy + y * t.scale, 2)] as Point);
 }
 
 /** Convert pixel rectangles to plan polygons (metres, y down), snapped to centimetres. */

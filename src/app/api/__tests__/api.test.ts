@@ -15,11 +15,11 @@ const H = { Authorization: `Bearer ${KEY}` };
 const json = async (r: Response) => ({ status: r.status, body: await r.json() });
 const ctx = <T extends Record<string, unknown>>(p: T) => ({ params: Promise.resolve(p) });
 
-beforeAll(() => {
+beforeAll(async () => {
   process.env.AUTO_SEED = "0";
-  setDb(openTestDb());
-  const r = seedDemo(db());
-  publishEvent(db(), r.eventId);
+  setDb(await openTestDb());
+  const r = await seedDemo(db());
+  await publishEvent(db(), r.eventId);
 });
 afterAll(() => setDb(undefined));
 

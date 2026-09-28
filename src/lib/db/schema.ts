@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real, primaryKey, index, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, blob, primaryKey, index, uniqueIndex } from "drizzle-orm/sqlite-core";
 import type {
   BannerPlacement, BoothColors, BoothStatus, BoothType, ElementKind, ElementProps, EventSettings, Geometry,
   Georef, LevelBackground, OrderStatus, Polygon, SponsorLevel, TransitionKind, WebhookEventType,
@@ -364,7 +364,16 @@ export const mediaAssets = sqliteTable("media_assets", {
   mime: text("mime").notNull(),
   size: integer("size").notNull(),
   path: text("path").notNull(),
+  /** File contents. Stored in the database so every server instance can serve it; null for legacy disk-backed rows. */
+  data: blob("data", { mode: "buffer" }),
   createdAt: text("created_at").notNull().$defaultFn(now),
+});
+
+/** Process-independent key/value flags (e.g. the demo-seed lock shared by all serverless instances). */
+export const appMeta = sqliteTable("app_meta", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: text("updated_at").notNull().$defaultFn(now),
 });
 
 export type Organization = typeof organizations.$inferSelect;

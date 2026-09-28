@@ -15,28 +15,28 @@ export function publicSettings(s: EventSettings): EventSettings {
 }
 
 /** Build the live bundle straight from the database (what the editor and preview use). */
-export function buildBundle(d: DB, eventId: string): PlanBundle | null {
-  const ev = d.select().from(schema.events).where(eq(schema.events.id, eventId)).get();
+export async function buildBundle(d: DB, eventId: string): Promise<PlanBundle | null> {
+  const ev = await d.select().from(schema.events).where(eq(schema.events.id, eventId)).get();
   if (!ev) return null;
 
-  const levels = d.select().from(schema.levels).where(eq(schema.levels.eventId, eventId)).orderBy(asc(schema.levels.sortIndex)).all();
-  const elements = d.select().from(schema.elements).where(eq(schema.elements.eventId, eventId)).orderBy(asc(schema.elements.sortIndex)).all();
-  const booths = d.select().from(schema.booths).where(eq(schema.booths.eventId, eventId)).orderBy(asc(schema.booths.sortIndex), asc(schema.booths.label)).all();
-  const exhibitors = d.select().from(schema.exhibitors).where(eq(schema.exhibitors.eventId, eventId)).orderBy(asc(schema.exhibitors.name)).all();
-  const categories = d.select().from(schema.categories).where(eq(schema.categories.eventId, eventId)).orderBy(asc(schema.categories.sortIndex), asc(schema.categories.name)).all();
-  const sessions = d.select().from(schema.sessions).where(eq(schema.sessions.eventId, eventId)).orderBy(asc(schema.sessions.startsAt)).all();
-  const nodes = d.select().from(schema.wayNodes).where(eq(schema.wayNodes.eventId, eventId)).all();
-  const edges = d.select().from(schema.wayEdges).where(eq(schema.wayEdges.eventId, eventId)).all();
-  const transitions = d.select().from(schema.transitions).where(eq(schema.transitions.eventId, eventId)).all();
-  const banners = d.select().from(schema.banners).where(eq(schema.banners.eventId, eventId)).all();
-  const rules = d.select().from(schema.pricingRules).where(eq(schema.pricingRules.eventId, eventId)).all();
-  const extras = d.select().from(schema.extras).where(eq(schema.extras.eventId, eventId)).orderBy(asc(schema.extras.sortIndex)).all();
+  const levels = await d.select().from(schema.levels).where(eq(schema.levels.eventId, eventId)).orderBy(asc(schema.levels.sortIndex)).all();
+  const elements = await d.select().from(schema.elements).where(eq(schema.elements.eventId, eventId)).orderBy(asc(schema.elements.sortIndex)).all();
+  const booths = await d.select().from(schema.booths).where(eq(schema.booths.eventId, eventId)).orderBy(asc(schema.booths.sortIndex), asc(schema.booths.label)).all();
+  const exhibitors = await d.select().from(schema.exhibitors).where(eq(schema.exhibitors.eventId, eventId)).orderBy(asc(schema.exhibitors.name)).all();
+  const categories = await d.select().from(schema.categories).where(eq(schema.categories.eventId, eventId)).orderBy(asc(schema.categories.sortIndex), asc(schema.categories.name)).all();
+  const sessions = await d.select().from(schema.sessions).where(eq(schema.sessions.eventId, eventId)).orderBy(asc(schema.sessions.startsAt)).all();
+  const nodes = await d.select().from(schema.wayNodes).where(eq(schema.wayNodes.eventId, eventId)).all();
+  const edges = await d.select().from(schema.wayEdges).where(eq(schema.wayEdges.eventId, eventId)).all();
+  const transitions = await d.select().from(schema.transitions).where(eq(schema.transitions.eventId, eventId)).all();
+  const banners = await d.select().from(schema.banners).where(eq(schema.banners.eventId, eventId)).all();
+  const rules = await d.select().from(schema.pricingRules).where(eq(schema.pricingRules.eventId, eventId)).all();
+  const extras = await d.select().from(schema.extras).where(eq(schema.extras.eventId, eventId)).orderBy(asc(schema.extras.sortIndex)).all();
   const extraIdSet = new Set(extras.map((x) => x.id));
 
   const boothIds = new Set(booths.map((b) => b.id));
   const exIds = new Set(exhibitors.map((e) => e.id));
-  const be = d.select().from(schema.boothExhibitors).all().filter((r) => boothIds.has(r.boothId) && exIds.has(r.exhibitorId));
-  const ec = d.select().from(schema.exhibitorCategories).all().filter((r) => exIds.has(r.exhibitorId));
+  const be = (await d.select().from(schema.boothExhibitors).all()).filter((r) => boothIds.has(r.boothId) && exIds.has(r.exhibitorId));
+  const ec = (await d.select().from(schema.exhibitorCategories).all()).filter((r) => exIds.has(r.exhibitorId));
 
   const boothToEx = new Map<string, string[]>();
   const exToBooth = new Map<string, string[]>();
@@ -47,7 +47,7 @@ export function buildBundle(d: DB, eventId: string): PlanBundle | null {
   const exToCat = new Map<string, string[]>();
   for (const r of ec) exToCat.set(r.exhibitorId, [...(exToCat.get(r.exhibitorId) ?? []), r.categoryId]);
   const exToExtra = new Map<string, string[]>();
-  for (const r of d.select().from(schema.exhibitorExtras).all().filter((r) => extraIdSet.has(r.extraId))) exToExtra.set(r.exhibitorId, [...(exToExtra.get(r.exhibitorId) ?? []), r.extraId]);
+  for (const r of (await d.select().from(schema.exhibitorExtras).all()).filter((r) => extraIdSet.has(r.extraId))) exToExtra.set(r.exhibitorId, [...(exToExtra.get(r.exhibitorId) ?? []), r.extraId]);
   const boothLabel = new Map(booths.map((b) => [b.id, b.label]));
 
   const settings = ev.settings;
@@ -163,34 +163,34 @@ export function buildBundle(d: DB, eventId: string): PlanBundle | null {
 }
 
 /** Snapshot the live bundle as a new published version. */
-export function publishEvent(d: DB, eventId: string, note?: string): { version: number } | null {
-  const ev = d.select().from(schema.events).where(eq(schema.events.id, eventId)).get();
+export async function publishEvent(d: DB, eventId: string, note?: string): Promise<{ version: number } | null> {
+  const ev = await d.select().from(schema.events).where(eq(schema.events.id, eventId)).get();
   if (!ev) return null;
   const version = ev.publishedVersion + 1;
   const now = new Date().toISOString();
-  d.update(schema.events).set({ publishedVersion: version, publishedAt: now, status: "published", updatedAt: now }).where(eq(schema.events.id, eventId)).run();
-  const bundle = buildBundle(d, eventId)!;
+  await d.update(schema.events).set({ publishedVersion: version, publishedAt: now, status: "published", updatedAt: now }).where(eq(schema.events.id, eventId)).run();
+  const bundle = (await buildBundle(d, eventId))!;
   bundle.version = version;
-  d.insert(schema.floorplanVersions).values({ id: newId("fv"), eventId, version, bundle, note: note ?? null }).run();
+  await d.insert(schema.floorplanVersions).values({ id: newId("fv"), eventId, version, bundle, note: note ?? null }).run();
   return { version };
 }
 
 /** Latest published bundle, or null if never published. */
-export function getPublishedBundle(d: DB, eventId: string): PlanBundle | null {
-  const row = d.select().from(schema.floorplanVersions).where(eq(schema.floorplanVersions.eventId, eventId)).orderBy(desc(schema.floorplanVersions.version)).get();
+export async function getPublishedBundle(d: DB, eventId: string): Promise<PlanBundle | null> {
+  const row = await d.select().from(schema.floorplanVersions).where(eq(schema.floorplanVersions.eventId, eventId)).orderBy(desc(schema.floorplanVersions.version)).get();
   return (row?.bundle as PlanBundle | undefined) ?? null;
 }
 
 /** Bundle for the public viewer: published snapshot, or live data when `preview` is set. */
-export function getViewerBundle(d: DB, eventId: string, preview = false): PlanBundle | null {
-  if (preview) return buildBundle(d, eventId);
-  return getPublishedBundle(d, eventId) ?? null;
+export async function getViewerBundle(d: DB, eventId: string, preview = false): Promise<PlanBundle | null> {
+  if (preview) return await buildBundle(d, eventId);
+  return (await getPublishedBundle(d, eventId)) ?? null;
 }
 
-export function findEventBySlugOrId(d: DB, slugOrId: string) {
+export async function findEventBySlugOrId(d: DB, slugOrId: string) {
   return (
-    d.select().from(schema.events).where(eq(schema.events.slug, slugOrId)).get() ??
-    d.select().from(schema.events).where(eq(schema.events.id, slugOrId)).get() ??
+    (await d.select().from(schema.events).where(eq(schema.events.slug, slugOrId)).get()) ??
+    (await d.select().from(schema.events).where(eq(schema.events.id, slugOrId)).get()) ??
     null
   );
 }

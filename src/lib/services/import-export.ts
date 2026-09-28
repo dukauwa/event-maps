@@ -10,19 +10,20 @@ import { bulkUpsertExhibitors, listExhibitors, type ExhibitorInput } from "./exh
 import { ensureCategory } from "./categories";
 import { bulkUpsertSessions, type SessionInput } from "./sessions";
 import type { Event } from "@/lib/db/schema";
+import { mapSeq } from "@/lib/async";
 
 /** CSV columns: label|booth|name, level (shortName), x, y, width|w, height|h, type, status, price, external_id, notes. */
-export function importBoothsCsv(ev: Event, csvText: string) {
+export async function importBoothsCsv(ev: Event, csvText: string) {
   const rows = parseCsv(csvText);
-  const levels = db().select().from(schema.levels).where(eq(schema.levels.eventId, ev.id)).all();
+  const levels = await db().select().from(schema.levels).where(eq(schema.levels.eventId, ev.id)).all();
   const items: BoothInput[] = [];
   const errors: { index: number; error: string }[] = [];
-  rows.forEach((r, index) => {
+  for (const [index, r] of rows.entries()) {
     const label = col(r, "label", "booth", "name", "stand", "booth_number");
     const lvl = col(r, "level", "floor", "hall");
     const level = lvl ? levels.find((l) => l.shortName.toLowerCase() === lvl.toLowerCase() || l.name.toLowerCase() === lvl.toLowerCase()) : levels[0];
     const x = Number(col(r, "x", "left")), y = Number(col(r, "y", "top")), w = Number(col(r, "width", "w") ?? 3), h = Number(col(r, "height", "h", "depth") ?? 3);
-    if (!label || !level || Number.isNaN(x) || Number.isNaN(y)) { errors.push({ index, error: "Missing label/level/x/y" }); return; }
+    if (!label || !level || Number.isNaN(x) || Number.isNaN(y)) { errors.push({ index, error: "Missing label/level/x/y" }); continue; }
     const type = (col(r, "type", "booth_type") ?? "standard").toLowerCase() as BoothType;
     const status = (col(r, "status") ?? "available").toLowerCase() as BoothStatus;
     const priceRaw = col(r, "price", "price_cents");
@@ -32,20 +33,21 @@ export function importBoothsCsv(ev: Event, csvText: string) {
       boothType: BOOTH_TYPES.includes(type) ? type : "standard", status: BOOTH_STATUSES.includes(status) ? status : "available",
       priceCents: priceRaw ? Math.round(Number(priceRaw.replace(/[^0-9.]/g, "")) * (r.price_cents ? 1 : 100)) : null, notes: col(r, "notes", "admin_notes") ?? null,
     });
-  });
-  const result = bulkUpsertBooths(ev, items);
+  }
+  const result = await bulkUpsertBooths(ev, items);
   return { ...result, errors: [...errors, ...result.errors], parsed: rows.length };
 }
 
 /** ExpoFP-compatible exhibitor template: Exhibitor ID, name, description, address, booth(s), category, phone, email, website, socials, contact, logo URL, tags, featured. */
-export function importExhibitorsCsv(ev: Event, csvText: string) {
+export async function importExhibitorsCsv(ev: Event, csvText: string) {
   const rows = parseCsv(csvText);
   const items: ExhibitorInput[] = [];
   const errors: { index: number; error: string }[] = [];
-  rows.forEach((r, index) => {
+  for (const [index, r] of rows.entries()) {
     const name = col(r, "name", "company", "exhibitor", "exhibitor_name");
-    if (!name) { errors.push({ index, error: "Missing name" }); return; }
-    const cats = (col(r, "category", "categories") ?? "").split(/[;,|]/).map((s) => s.trim()).filter(Boolean).map((c) => ensureCategory(ev.id, c));
+    if (!name) { errors.push({ index, error: "Missing name" }); continue; }
+    const cats = (col(r, "category", "categories") ?? "").split(/[;,|]/).map((s) => s.trim()).filter(Boolean);
+    const catIds = await mapSeq(cats, (c) => ensureCategory(ev.id, c));
     const booths = (col(r, "booth", "booths", "stand", "booth_s") ?? "").split(/[;,|]/).map((s) => s.trim()).filter(Boolean);
     const socials: Record<string, string> = {};
     for (const k of ["facebook", "instagram", "linkedin", "twitter", "x", "youtube", "tiktok"]) if (r[k]) socials[k === "twitter" ? "x" : k] = r[k];
@@ -54,39 +56,39 @@ export function importExhibitorsCsv(ev: Event, csvText: string) {
       address: col(r, "address") ?? null, city: col(r, "city") ?? null, country: col(r, "country") ?? null, zip: col(r, "zip", "postcode", "postal_code") ?? null,
       phone: col(r, "phone") ?? null, email: col(r, "email") ?? null, website: col(r, "website", "url") ?? null, logoUrl: col(r, "logo", "logo_url") ?? null,
       contactName: col(r, "contact_name", "contact") ?? null, featured: /^(1|true|yes)$/i.test(col(r, "featured") ?? ""), tags: (col(r, "tags") ?? "").split(/[;,|]/).map((s) => s.trim()).filter(Boolean),
-      videoUrl: col(r, "video", "video_url") ?? null, socials, categoryIds: cats, boothLabels: booths,
+      videoUrl: col(r, "video", "video_url") ?? null, socials, categoryIds: catIds, boothLabels: booths,
     });
-  });
-  const result = bulkUpsertExhibitors(ev, items);
+  }
+  const result = await bulkUpsertExhibitors(ev, items);
   return { ...result, errors: [...errors, ...result.errors], parsed: rows.length };
 }
 
-export function importSessionsCsv(ev: Event, csvText: string) {
+export async function importSessionsCsv(ev: Event, csvText: string) {
   const rows = parseCsv(csvText);
   const items: SessionInput[] = [];
   const errors: { index: number; error: string }[] = [];
-  rows.forEach((r, index) => {
+  for (const [index, r] of rows.entries()) {
     const title = col(r, "title", "name", "session");
     const startsAt = col(r, "starts_at", "start", "start_date", "startdate"), endsAt = col(r, "ends_at", "end", "end_date", "enddate");
-    if (!title || !startsAt || !endsAt) { errors.push({ index, error: "Missing title/start/end" }); return; }
+    if (!title || !startsAt || !endsAt) { errors.push({ index, error: "Missing title/start/end" }); continue; }
     items.push({ title, startsAt, endsAt, externalId: col(r, "external_id", "id") ?? null, description: col(r, "description") ?? null, track: col(r, "track") ?? null, boothLabel: col(r, "booth") ?? null, locationName: col(r, "location", "room", "stage") ?? null, url: col(r, "url") ?? null, speakers: (col(r, "speakers") ?? "").split(/[;|]/).map((s) => s.trim()).filter(Boolean).map((name) => ({ name })) });
-  });
-  const result = bulkUpsertSessions(ev, items);
+  }
+  const result = await bulkUpsertSessions(ev, items);
   return { ...result, errors: [...errors, ...result.errors], parsed: rows.length };
 }
 
-export function exportBoothsCsv(ev: Event) {
-  const levels = new Map(db().select().from(schema.levels).where(eq(schema.levels.eventId, ev.id)).all().map((l) => [l.id, l.shortName]));
-  const exNames = new Map(db().select({ id: schema.exhibitors.id, name: schema.exhibitors.name }).from(schema.exhibitors).where(eq(schema.exhibitors.eventId, ev.id)).all().map((e) => [e.id, e.name]));
-  return toCsv(listBooths(ev.id).map((b) => ({
+export async function exportBoothsCsv(ev: Event) {
+  const levels = new Map((await db().select().from(schema.levels).where(eq(schema.levels.eventId, ev.id)).all()).map((l) => [l.id, l.shortName]));
+  const exNames = new Map((await db().select({ id: schema.exhibitors.id, name: schema.exhibitors.name }).from(schema.exhibitors).where(eq(schema.exhibitors.eventId, ev.id)).all()).map((e) => [e.id, e.name]));
+  return toCsv((await listBooths(ev.id)).map((b) => ({
     label: b.label, level: levels.get(b.levelId), external_id: b.externalId, type: b.boothType, status: b.status, x: b.polygon[0][0], y: b.polygon[0][1], width: b.widthM, height: b.heightM, area_m2: b.areaM2,
     price: b.priceCents != null ? b.priceCents / 100 : "", currency: b.currency, exhibitors: b.exhibitorIds.map((id) => exNames.get(id)).join("; "), notes: b.notes,
   })), ["label", "level", "external_id", "type", "status", "x", "y", "width", "height", "area_m2", "price", "currency", "exhibitors", "notes"]);
 }
 
-export function exportExhibitorsCsv(ev: Event) {
-  const cats = new Map(db().select().from(schema.categories).where(eq(schema.categories.eventId, ev.id)).all().map((c) => [c.id, c.name]));
-  return toCsv(listExhibitors(ev.id).map((e) => ({
+export async function exportExhibitorsCsv(ev: Event) {
+  const cats = new Map((await db().select().from(schema.categories).where(eq(schema.categories.eventId, ev.id)).all()).map((c) => [c.id, c.name]));
+  return toCsv((await listExhibitors(ev.id)).map((e) => ({
     exhibitor_id: e.externalId, grip_id: e.gripId, name: e.name, booths: e.boothLabels.join("; "), categories: e.categoryIds.map((c) => cats.get(c)).join("; "), description: e.description, address: e.address, city: e.city, zip: e.zip, country: e.country,
     phone: e.phone, email: e.email, website: e.website, contact_name: e.contactName, featured: e.featured, sponsor_level: e.sponsorLevel, tags: e.tags.join("; "), logo_url: e.logoUrl?.startsWith("data:") ? "(inline)" : e.logoUrl, linkedin: e.socials.linkedin, x: e.socials.x, portal_link: `/x/${e.portalToken}`,
   })));

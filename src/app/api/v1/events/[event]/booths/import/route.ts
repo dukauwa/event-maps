@@ -6,5 +6,5 @@ export const OPTIONS = () => optionsResponse();
 export const POST = withApi(async (req: Request, ctx: { params: Promise<{ event: string }> }) => {
   const { event } = await requireEvent(req, (await ctx.params).event, "write");
   const csv = await readCsv(req);
-  return ok(importBoothsCsv(event, csv));
+  return ok(await importBoothsCsv(event, csv));
 });

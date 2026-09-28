@@ -3,5 +3,5 @@ import { createTransition, listTransitions, transitionInput } from "@/lib/servic
 
 type Ctx = { params: Promise<{ event: string }> };
 export const OPTIONS = () => optionsResponse();
-export const GET = withApi(async (req: Request, ctx: Ctx) => { const { event } = await requireEvent(req, (await ctx.params).event); return ok(listTransitions(event.id)); });
-export const POST = withApi(async (req: Request, ctx: Ctx) => { const { event } = await requireEvent(req, (await ctx.params).event, "write"); return ok(createTransition(event.id, await parseBody(req, transitionInput)), { status: 201 }); });
+export const GET = withApi(async (req: Request, ctx: Ctx) => { const { event } = await requireEvent(req, (await ctx.params).event); return ok(await listTransitions(event.id)); });
+export const POST = withApi(async (req: Request, ctx: Ctx) => { const { event } = await requireEvent(req, (await ctx.params).event, "write"); return ok(await createTransition(event.id, await parseBody(req, transitionInput)), { status: 201 }); });

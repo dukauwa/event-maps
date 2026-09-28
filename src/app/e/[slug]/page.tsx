@@ -7,7 +7,7 @@ type Props = { params: Promise<{ slug: string }>; searchParams: Promise<SearchPa
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  return viewerMetadata(slug);
+  return await viewerMetadata(slug);
 }
 
 /** Public attendee floor plan viewer. */

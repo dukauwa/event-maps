@@ -1,11 +1,19 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["better-sqlite3"],
-  // Migrations and the native SQLite binding are read at runtime, so they must be traced
-  // into the serverless bundle (Vercel prunes anything it cannot see being imported).
+  serverExternalPackages: ["@libsql/client", "libsql"],
+  // Read at runtime, so they must be traced into the serverless bundle (Vercel prunes what it cannot see imported):
+  // the migrations, and libSQL's native driver for file databases. The native driver is required lazily and picks its
+  // binary by platform name, which static tracing cannot follow. (With a hosted database only the HTTP client runs.)
   outputFileTracingIncludes: {
-    "/**": ["./drizzle/**/*.sql", "./drizzle/meta/**", "./node_modules/.pnpm/better-sqlite3@*/node_modules/better-sqlite3/prebuilds/linux-*.node", "./node_modules/.pnpm/better-sqlite3@*/node_modules/better-sqlite3/build/Release/*.node"],
+    "/**": [
+      "./drizzle/**/*.sql",
+      "./drizzle/meta/**",
+      // File patterns only: pnpm links packages with symlinked folders, which a bare `**` would try to read as files.
+      "./node_modules/.pnpm/@libsql+client@*/node_modules/**/*.{js,cjs,json}",
+      "./node_modules/.pnpm/libsql@*/node_modules/**/*.{js,cjs,json,node}",
+      "./node_modules/.pnpm/@libsql+linux-x64-gnu@*/node_modules/@libsql/linux-x64-gnu/*.{json,node}",
+    ],
   },
   images: { remotePatterns: [{ protocol: "https", hostname: "**" }, { protocol: "http", hostname: "**" }] },
   async headers() {

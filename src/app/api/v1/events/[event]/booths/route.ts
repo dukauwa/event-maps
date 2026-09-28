@@ -8,9 +8,9 @@ export const OPTIONS = () => optionsResponse();
 /** List booths. Filters: `levelId`, `status`, `q`, `exhibitorId`. Paginated with `limit`/`offset`. */
 export const GET = withApi(async (req: Request, ctx: Ctx) => {
   const { event } = await requireEvent(req, (await ctx.params).event);
-  releaseExpiredHolds(event);
+  await releaseExpiredHolds(event);
   const q = new URL(req.url).searchParams;
-  const rows = listBooths(event.id, { levelId: q.get("levelId") ?? undefined, status: (q.get("status") as BoothStatus) ?? undefined, q: q.get("q") ?? undefined, exhibitorId: q.get("exhibitorId") ?? undefined });
+  const rows = await listBooths(event.id, { levelId: q.get("levelId") ?? undefined, status: (q.get("status") as BoothStatus) ?? undefined, q: q.get("q") ?? undefined, exhibitorId: q.get("exhibitorId") ?? undefined });
   const { data, meta } = paginate(rows, req);
   return ok(data, { meta });
 });
@@ -18,6 +18,6 @@ export const GET = withApi(async (req: Request, ctx: Ctx) => {
 export const POST = withApi(async (req: Request, ctx: Ctx) => {
   const { event } = await requireEvent(req, (await ctx.params).event, "write");
   const body = await parseBody(req, z.union([boothInput, z.array(boothInput).max(5000)]));
-  if (Array.isArray(body)) return ok(bulkUpsertBooths(event, body));
-  return ok(createBooth(event, body), { status: 201 });
+  if (Array.isArray(body)) return ok(await bulkUpsertBooths(event, body));
+  return ok(await createBooth(event, body), { status: 201 });
 });

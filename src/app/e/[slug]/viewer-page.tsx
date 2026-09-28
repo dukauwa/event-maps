@@ -12,7 +12,7 @@ export type SearchParams = Record<string, string | string[] | undefined>;
 
 /** Resolve event + bundle + parsed params for the viewer pages (shared by `/e/[slug]` and `/e/[slug]/embed`). */
 export async function loadViewer(slug: string, sp: SearchParams, extra: Partial<ViewerParams> = {}) {
-  const ev = findEventBySlugOrId(db(), slug);
+  const ev = await findEventBySlugOrId(db(), slug);
   if (!ev) notFound();
   const params: ViewerParams = { ...parseViewerParams(sp), ...extra };
   let preview = params.preview === "1";
@@ -21,13 +21,13 @@ export async function loadViewer(slug: string, sp: SearchParams, extra: Partial<
     preview = !!u && u.orgId === ev.orgId;
     if (!preview) delete params.preview;
   }
-  const bundle = getViewerBundle(db(), ev.id, preview);
+  const bundle = await getViewerBundle(db(), ev.id, preview);
   if (!bundle) notFound();
   return { ev, bundle, params, preview };
 }
 
 export async function viewerMetadata(slug: string): Promise<Metadata> {
-  const ev = findEventBySlugOrId(db(), slug);
+  const ev = await findEventBySlugOrId(db(), slug);
   if (!ev) return { title: "Not found" };
   const seo = ev.settings.seo ?? {};
   const title = seo.title ?? `${ev.name} · Floor plan`;

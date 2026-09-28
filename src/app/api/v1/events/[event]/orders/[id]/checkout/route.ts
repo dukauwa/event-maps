@@ -9,8 +9,8 @@ export const OPTIONS = () => optionsResponse();
 /** Public: creates the Stripe Checkout Session for a held order and redirects to it. */
 export const GET = withApi(async (_req: Request, ctx: { params: Promise<{ event: string; id: string }> }) => {
   const p = await ctx.params;
-  const event = findEventBySlugOrId(db(), p.event); if (!event) throw notFound("event");
-  const order = getOrder(event.id, p.id); if (!order || order.status !== "hold") throw notFound("order");
+  const event = await findEventBySlugOrId(db(), p.event); if (!event) throw notFound("event");
+  const order = await getOrder(event.id, p.id); if (!order || order.status !== "hold") throw notFound("order");
   const url = await createStripeCheckoutSession(event, order, await requestOrigin());
   return NextResponse.redirect(url, 303);
 });

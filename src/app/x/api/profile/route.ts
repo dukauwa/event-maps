@@ -7,5 +7,5 @@ const allowed = exhibitorInput.pick({ name: true, description: true, website: tr
 export const PATCH = withApi(async (req: Request) => {
   const { exhibitor, event } = await requirePortal();
   const patch = await parseBody(req, allowed);
-  return ok(updateExhibitor(event, exhibitor.id, patch));
+  return ok(await updateExhibitor(event, exhibitor.id, patch));
 });

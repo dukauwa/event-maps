@@ -12,12 +12,13 @@ import { ensureCategory } from "./categories";
 import { parseCsv } from "./csv";
 import { badRequest } from "@/lib/api/http";
 import type { Event } from "@/lib/db/schema";
+import { mapSeq } from "@/lib/async";
 
 type Raw = Record<string, unknown>;
 const s = (v: unknown) => (v == null || v === "" ? undefined : String(v));
 const list = (v: unknown): string[] => Array.isArray(v) ? v.map((x) => (typeof x === "object" && x ? String((x as Raw).name ?? (x as Raw).label ?? "") : String(x))).filter(Boolean) : typeof v === "string" ? v.split(/[;,|]/).map((x) => x.trim()).filter(Boolean) : [];
 
-export function mapGripCompany(ev: Event, c: Raw): ExhibitorInput | null {
+export async function mapGripCompany(ev: Event, c: Raw): Promise<ExhibitorInput | null> {
   const name = s(c.name) ?? s(c.company) ?? s(c.companyName) ?? s(c.title);
   if (!name) return null;
   const socials: Record<string, string> = {};
@@ -36,7 +37,7 @@ export function mapGripCompany(ev: Event, c: Raw): ExhibitorInput | null {
     featured: /^(1|true|yes)$/i.test(s(c.featured) ?? "") || undefined,
     tags: list(c.tags),
     socials,
-    categoryIds: list(c.categories ?? c.category ?? c.industries ?? c.industry).map((n) => ensureCategory(ev.id, n)),
+    categoryIds: await mapSeq(list(c.categories ?? c.category ?? c.industries ?? c.industry), (n) => ensureCategory(ev.id, n)),
     boothLabels: list(c.booths ?? c.booth ?? c.stand ?? c.location),
     customButtonTitle: c.gripId || c._id ? "Book a meeting on Grip" : undefined,
     customButtonUrl: s(c.profileUrl) ?? s(c.url_profile) ?? (s(c._id) ? `https://web.grip.events/company/${s(c._id)}` : undefined),
@@ -58,10 +59,10 @@ export async function syncFromGrip(orgId: string, ev: Event, opts: { sourceUrl?:
     const json = (await res.json()) as unknown;
     rows = Array.isArray(json) ? (json as Raw[]) : Array.isArray((json as Raw)?.data) ? ((json as Raw).data as Raw[]) : Array.isArray((json as Raw)?.items) ? ((json as Raw).items as Raw[]) : [];
   }
-  const items = rows.map((r) => mapGripCompany(ev, r)).filter((x): x is ExhibitorInput => !!x);
+  const items = (await mapSeq(rows, (r) => mapGripCompany(ev, r))).filter((x): x is ExhibitorInput => !!x);
   if (opts.dryRun) return { dryRun: true, parsed: rows.length, mapped: items.length, sample: items.slice(0, 5) };
-  const result = bulkUpsertExhibitors(ev, items);
-  db().update(schema.events).set({ settings: { ...ev.settings, grip: { ...(ev.settings.grip ?? {}), lastSyncAt: new Date().toISOString() } } }).where(eq(schema.events.id, ev.id)).run();
+  const result = await bulkUpsertExhibitors(ev, items);
+  await db().update(schema.events).set({ settings: { ...ev.settings, grip: { ...(ev.settings.grip ?? {}), lastSyncAt: new Date().toISOString() } } }).where(eq(schema.events.id, ev.id)).run();
   void orgId;
   return { parsed: rows.length, mapped: items.length, ...result };
 }

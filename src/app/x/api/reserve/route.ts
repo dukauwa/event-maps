@@ -8,6 +8,6 @@ import { requirePortal } from "../_auth";
 export const POST = withApi(async (req: Request) => {
   const { exhibitor, event } = await requirePortal();
   const { boothId, notes } = await parseBody(req, z.object({ boothId: z.string(), notes: z.string().max(2000).optional() }));
-  const r = reserveBooth(event, { boothId, exhibitorId: exhibitor.id, company: exhibitor.name, contactName: exhibitor.contactName ?? exhibitor.name, contactEmail: exhibitor.email ?? `${exhibitor.slug}@example.com`, notes }, await requestOrigin());
+  const r = await reserveBooth(event, { boothId, exhibitorId: exhibitor.id, company: exhibitor.name, contactName: exhibitor.contactName ?? exhibitor.name, contactEmail: exhibitor.email ?? `${exhibitor.slug}@example.com`, notes }, await requestOrigin());
   return ok({ order: { id: r.order.id, status: r.order.status, expiresAt: r.order.expiresAt }, checkoutUrl: r.checkoutUrl }, { status: 201 });
 });

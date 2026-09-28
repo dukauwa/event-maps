@@ -10,11 +10,11 @@ import { MockCheckout } from "@/components/portal/mock-checkout";
 export default async function PayPage({ params, searchParams }: { params: Promise<{ slug: string; boothId: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
   const { slug, boothId } = await params;
   const { order: orderId } = await searchParams;
-  const event = findEventBySlugOrId(db(), slug);
+  const event = await findEventBySlugOrId(db(), slug);
   if (!event || !orderId) notFound();
-  expireOrders(event);
-  const order = getOrder(event.id, orderId);
-  const booth = getBooth(event.id, boothId);
+  await expireOrders(event);
+  const order = await getOrder(event.id, orderId);
+  const booth = await getBooth(event.id, boothId);
   if (!order || !booth || order.boothId !== booth.id) notFound();
   if (order.status === "paid") return <Redirect to={`/e/${event.slug}/reserve/${booth.id}/done?order=${order.id}`} />;
   if (order.status !== "hold") return (

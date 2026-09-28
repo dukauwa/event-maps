@@ -12,45 +12,45 @@ export const categoryInput = z.object({
 });
 export type CategoryInput = z.infer<typeof categoryInput>;
 
-export function listCategories(eventId: string) {
-  const rows = db().select().from(schema.categories).where(eq(schema.categories.eventId, eventId)).orderBy(asc(schema.categories.sortIndex), asc(schema.categories.name)).all();
+export async function listCategories(eventId: string) {
+  const rows = await db().select().from(schema.categories).where(eq(schema.categories.eventId, eventId)).orderBy(asc(schema.categories.sortIndex), asc(schema.categories.name)).all();
   const counts = new Map<string, number>();
-  for (const r of db().select({ c: schema.exhibitorCategories.categoryId }).from(schema.exhibitorCategories).innerJoin(schema.exhibitors, eq(schema.exhibitors.id, schema.exhibitorCategories.exhibitorId)).where(eq(schema.exhibitors.eventId, eventId)).all()) counts.set(r.c, (counts.get(r.c) ?? 0) + 1);
+  for (const r of await db().select({ c: schema.exhibitorCategories.categoryId }).from(schema.exhibitorCategories).innerJoin(schema.exhibitors, eq(schema.exhibitors.id, schema.exhibitorCategories.exhibitorId)).where(eq(schema.exhibitors.eventId, eventId)).all()) counts.set(r.c, (counts.get(r.c) ?? 0) + 1);
   return rows.map((r) => ({ ...r, exhibitorCount: counts.get(r.id) ?? 0 }));
 }
 
-export function getCategory(eventId: string, idOrName: string) {
-  return db().select().from(schema.categories).where(and(eq(schema.categories.eventId, eventId), eq(schema.categories.id, idOrName))).get()
-    ?? db().select().from(schema.categories).where(and(eq(schema.categories.eventId, eventId), eq(schema.categories.name, idOrName))).get()
+export async function getCategory(eventId: string, idOrName: string) {
+  return (await db().select().from(schema.categories).where(and(eq(schema.categories.eventId, eventId), eq(schema.categories.id, idOrName))).get())
+    ?? (await db().select().from(schema.categories).where(and(eq(schema.categories.eventId, eventId), eq(schema.categories.name, idOrName))).get())
     ?? null;
 }
 
-export function createCategory(eventId: string, input: CategoryInput) {
+export async function createCategory(eventId: string, input: CategoryInput) {
   const id = newId("ca");
-  const n = db().select().from(schema.categories).where(eq(schema.categories.eventId, eventId)).all().length;
-  db().insert(schema.categories).values({ id, eventId, name: input.name, color: input.color ?? null, parentId: input.parentId ?? null, sortIndex: input.sortIndex ?? n }).run();
-  return getCategory(eventId, id)!;
+  const n = (await db().select().from(schema.categories).where(eq(schema.categories.eventId, eventId)).all()).length;
+  await db().insert(schema.categories).values({ id, eventId, name: input.name, color: input.color ?? null, parentId: input.parentId ?? null, sortIndex: input.sortIndex ?? n }).run();
+  return (await getCategory(eventId, id))!;
 }
 
-export function updateCategory(eventId: string, id: string, patch: Partial<CategoryInput>) {
-  if (!getCategory(eventId, id)) throw notFound("category");
-  db().update(schema.categories).set(patch).where(eq(schema.categories.id, id)).run();
-  return getCategory(eventId, id)!;
+export async function updateCategory(eventId: string, id: string, patch: Partial<CategoryInput>) {
+  if (!(await getCategory(eventId, id))) throw notFound("category");
+  await db().update(schema.categories).set(patch).where(eq(schema.categories.id, id)).run();
+  return (await getCategory(eventId, id))!;
 }
 
-export function deleteCategory(eventId: string, id: string) {
-  if (!getCategory(eventId, id)) throw notFound("category");
-  db().delete(schema.categories).where(eq(schema.categories.id, id)).run();
+export async function deleteCategory(eventId: string, id: string) {
+  if (!(await getCategory(eventId, id))) throw notFound("category");
+  await db().delete(schema.categories).where(eq(schema.categories.id, id)).run();
 }
 
 /** Find-or-create by name ("Parent/Child" creates a hierarchy like ExpoFP's import). */
-export function ensureCategory(eventId: string, path: string): string {
+export async function ensureCategory(eventId: string, path: string): Promise<string> {
   const parts = path.split("/").map((s) => s.trim()).filter(Boolean);
   let parentId: string | null = null;
   let id = "";
   for (const name of parts) {
-    const existing = db().select().from(schema.categories).where(and(eq(schema.categories.eventId, eventId), eq(schema.categories.name, name))).all().find((c) => (c.parentId ?? null) === parentId);
-    id = existing?.id ?? createCategory(eventId, { name, parentId }).id;
+    const existing = (await db().select().from(schema.categories).where(and(eq(schema.categories.eventId, eventId), eq(schema.categories.name, name))).all()).find((c) => (c.parentId ?? null) === parentId);
+    id = existing?.id ?? (await createCategory(eventId, { name, parentId })).id;
     parentId = id;
   }
   return id;

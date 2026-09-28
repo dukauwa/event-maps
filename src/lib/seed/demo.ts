@@ -4,6 +4,7 @@
  * an organiser account, an API key and two weeks of synthetic analytics. Deterministic (seeded PRNG).
  */
 import { count } from "drizzle-orm";
+import type { BatchItem } from "drizzle-orm/batch";
 import type { DB } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 import { newId, secretToken, withDeterministicIds } from "@/lib/ids";
@@ -198,25 +199,35 @@ function layoutLevel2(): { booths: BoothSpec[]; elements: ElementSpec[]; lines: 
 
 export interface SeedResult { orgId: string; eventId: string; draftEventId: string; adminEmail: string; adminPassword: string; apiKey: string }
 
-export function isSeeded(d: DB): boolean {
-  const r = d.select({ n: count() }).from(schema.organizations).get();
+export async function isSeeded(d: DB): Promise<boolean> {
+  const r = await d.select({ n: count() }).from(schema.organizations).get();
   return (r?.n ?? 0) > 0;
 }
 
 /** Seeds the demo event. Ids are deterministic so every instance produces the same database. */
-export function seedDemo(d: DB): SeedResult {
+export function seedDemo(d: DB): Promise<SeedResult> {
   return withDeterministicIds(20260914, () => seedDemoInner(d));
 }
 
-function seedDemoInner(d: DB): SeedResult {
+async function seedDemoInner(d: DB): Promise<SeedResult> {
+  // Inserts are queued and sent in ordered batches: one round trip per 100 rows instead of one per row, which is
+  // the difference between seconds and minutes against a hosted database.
+  const queue: BatchItem<"sqlite">[] = [];
+  const q = (stmt: BatchItem<"sqlite">) => { queue.push(stmt); };
+  const flush = async () => {
+    while (queue.length) {
+      const chunk = queue.splice(0, 100);
+      await d.batch(chunk as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
+    }
+  };
   const rng = mulberry32(2026);
   const pick = <T,>(arr: readonly T[]): T => arr[Math.floor(rng() * arr.length)];
 
   const orgId = newId("org");
-  d.insert(schema.organizations).values({ id: orgId, name: DEMO.orgName, slug: DEMO.orgSlug }).run();
+  q(d.insert(schema.organizations).values({ id: orgId, name: DEMO.orgName, slug: DEMO.orgSlug }));
   const userId = newId("usr");
-  d.insert(schema.users).values({ id: userId, orgId, email: DEMO.adminEmail, name: "Demo Organiser", passwordHash: hashPassword(DEMO.adminPassword), role: "owner" }).run();
-  d.insert(schema.apiKeys).values({ id: newId("ak"), orgId, name: "Demo key", prefix: DEMO.apiKey.slice(0, 16), keyHash: sha256(DEMO.apiKey), scopes: ["read", "write"] }).run();
+  q(d.insert(schema.users).values({ id: userId, orgId, email: DEMO.adminEmail, name: "Demo Organiser", passwordHash: hashPassword(DEMO.adminPassword), role: "owner" }));
+  q(d.insert(schema.apiKeys).values({ id: newId("ak"), orgId, name: "Demo key", prefix: DEMO.apiKey.slice(0, 16), keyHash: sha256(DEMO.apiKey), scopes: ["read", "write"] }));
 
   const settings: EventSettings = {
     ...DEFAULT_SETTINGS,
@@ -231,25 +242,25 @@ function seedDemoInner(d: DB): SeedResult {
   };
 
   const eventId = newId("ev");
-  d.insert(schema.events).values({
-    id: eventId, orgId, slug: DEMO.eventSlug, name: "Grip Connect 2026", subtitle: "The networking-first tech expo",
-    description: "Two days, two levels, 280 exhibitors and thousands of AI-matched meetings. Find every booth, plan your route and never miss a session.",
-    startsAt: "2026-11-17T09:00:00.000Z", endsAt: "2026-11-18T18:00:00.000Z", timezone: "Europe/London",
-    venueName: "ExCeL London", venueAddress: "Royal Victoria Dock, 1 Western Gateway, London E16 1XL", venueLat: 51.5083, venueLng: 0.0299,
-    status: "published", settings,
-  }).run();
+  q(d.insert(schema.events).values({
+            id: eventId, orgId, slug: DEMO.eventSlug, name: "Grip Connect 2026", subtitle: "The networking-first tech expo",
+            description: "Two days, two levels, 280 exhibitors and thousands of AI-matched meetings. Find every booth, plan your route and never miss a session.",
+            startsAt: "2026-11-17T09:00:00.000Z", endsAt: "2026-11-18T18:00:00.000Z", timezone: "Europe/London",
+            venueName: "ExCeL London", venueAddress: "Royal Victoria Dock, 1 Western Gateway, London E16 1XL", venueLat: 51.5083, venueLng: 0.0299,
+            status: "published", settings,
+          }));
 
   // Levels (georeferenced onto ExCeL London so the basemap overlay works)
   const levelIds: Record<string, string> = { L1: newId("lv"), L2: newId("lv") };
-  d.insert(schema.levels).values([
-    { id: levelIds.L1, eventId, name: "Level 1 · Exhibition Halls", shortName: "L1", sortIndex: 0, widthM: 200, heightM: 120, georef: { originLat: 51.50915, originLng: 0.02635, rotationDeg: 8, metersPerUnit: 1 }, background: null },
-    { id: levelIds.L2, eventId, name: "Level 2 · Startup Alley & Conference", shortName: "L2", sortIndex: 1, widthM: 120, heightM: 80, georef: { originLat: 51.50915, originLng: 0.02635, rotationDeg: 8, metersPerUnit: 1 }, background: null },
-  ]).run();
+  q(d.insert(schema.levels).values([
+            { id: levelIds.L1, eventId, name: "Level 1 · Exhibition Halls", shortName: "L1", sortIndex: 0, widthM: 200, heightM: 120, georef: { originLat: 51.50915, originLng: 0.02635, rotationDeg: 8, metersPerUnit: 1 }, background: null },
+            { id: levelIds.L2, eventId, name: "Level 2 · Startup Alley & Conference", shortName: "L2", sortIndex: 1, widthM: 120, heightM: 80, georef: { originLat: 51.50915, originLng: 0.02635, rotationDeg: 8, metersPerUnit: 1 }, background: null },
+          ]));
 
   // Categories
   const catIds = CATEGORIES.map((c, i) => {
     const id = newId("ca");
-    d.insert(schema.categories).values({ id, eventId, name: c.name, color: c.color, sortIndex: i }).run();
+    q(d.insert(schema.categories).values({ id, eventId, name: c.name, color: c.color, sortIndex: i }));
     return id;
   });
 
@@ -263,7 +274,7 @@ function seedDemoInner(d: DB): SeedResult {
   for (const el of allElements) {
     const id = newId("el");
     if (el.props.name) elementIds.set(el.props.name, id);
-    d.insert(schema.elements).values({ id, eventId, levelId: levelIds[el.levelKey], kind: el.kind, geometry: el.geometry, props: el.props, sortIndex: el.sortIndex }).run();
+    q(d.insert(schema.elements).values({ id, eventId, levelId: levelIds[el.levelKey], kind: el.kind, geometry: el.geometry, props: el.props, sortIndex: el.sortIndex }));
   }
 
   // Wayfinding
@@ -273,25 +284,25 @@ function seedDemoInner(d: DB): SeedResult {
     for (const n of g.nodes) {
       const id = newId("wn");
       nodeIdByKey[lk].set(n.key, id);
-      d.insert(schema.wayNodes).values({ id, eventId, levelId: levelIds[lk], x: n.x, y: n.y }).run();
+      q(d.insert(schema.wayNodes).values({ id, eventId, levelId: levelIds[lk], x: n.x, y: n.y }));
     }
     for (const e of g.edges) {
-      d.insert(schema.wayEdges).values({ id: newId("we"), eventId, levelId: levelIds[lk], fromNodeId: nodeIdByKey[lk].get(e.from)!, toNodeId: nodeIdByKey[lk].get(e.to)!, accessible: e.accessible, oneWay: e.oneWay, virtual: e.virtual, weight: e.weight }).run();
+      q(d.insert(schema.wayEdges).values({ id: newId("we"), eventId, levelId: levelIds[lk], fromNodeId: nodeIdByKey[lk].get(e.from)!, toNodeId: nodeIdByKey[lk].get(e.to)!, accessible: e.accessible, oneWay: e.oneWay, virtual: e.virtual, weight: e.weight }));
     }
   }
-  d.insert(schema.transitions).values([
-    { id: newId("tr"), eventId, name: "Escalator", kind: "escalator", accessible: false, nodeIds: [nodeIdByKey.L1.get("186,86")!, nodeIdByKey.L2.get("10,8")!], travelSeconds: 45 },
-    { id: newId("tr"), eventId, name: "Lift", kind: "elevator", accessible: true, nodeIds: [nodeIdByKey.L1.get("186,9")!, nodeIdByKey.L2.get("88,8")!], travelSeconds: 90 },
-  ]).run();
+  q(d.insert(schema.transitions).values([
+            { id: newId("tr"), eventId, name: "Escalator", kind: "escalator", accessible: false, nodeIds: [nodeIdByKey.L1.get("186,86")!, nodeIdByKey.L2.get("10,8")!], travelSeconds: 45 },
+            { id: newId("tr"), eventId, name: "Lift", kind: "elevator", accessible: true, nodeIds: [nodeIdByKey.L1.get("186,9")!, nodeIdByKey.L2.get("88,8")!], travelSeconds: 90 },
+          ]));
 
   // Pricing rules
-  d.insert(schema.pricingRules).values([
-    { id: newId("pr"), eventId, name: "Island sponsor package", boothType: "island", priceCents: 6_500_000, currency: "GBP", sortIndex: 0 },
-    { id: newId("pr"), eventId, name: "Sponsor booth", boothType: "sponsor", priceCents: 2_400_000, currency: "GBP", sortIndex: 1 },
-    { id: newId("pr"), eventId, name: "Corner booth", boothType: "corner", pricePerM2Cents: 46_500, currency: "GBP", sortIndex: 2 },
-    { id: newId("pr"), eventId, name: "Startup table", boothType: "table", priceCents: 120_000, currency: "GBP", sortIndex: 3 },
-    { id: newId("pr"), eventId, name: "Standard booth", boothType: "standard", pricePerM2Cents: 42_000, currency: "GBP", sortIndex: 4 },
-  ]).run();
+  q(d.insert(schema.pricingRules).values([
+            { id: newId("pr"), eventId, name: "Island sponsor package", boothType: "island", priceCents: 6_500_000, currency: "GBP", sortIndex: 0 },
+            { id: newId("pr"), eventId, name: "Sponsor booth", boothType: "sponsor", priceCents: 2_400_000, currency: "GBP", sortIndex: 1 },
+            { id: newId("pr"), eventId, name: "Corner booth", boothType: "corner", pricePerM2Cents: 46_500, currency: "GBP", sortIndex: 2 },
+            { id: newId("pr"), eventId, name: "Startup table", boothType: "table", priceCents: 120_000, currency: "GBP", sortIndex: 3 },
+            { id: newId("pr"), eventId, name: "Standard booth", boothType: "standard", pricePerM2Cents: 42_000, currency: "GBP", sortIndex: 4 },
+          ]));
 
   // Exhibitors + booth assignment
   const usedNames = new Set<string>();
@@ -307,7 +318,7 @@ function seedDemoInner(d: DB): SeedResult {
   let firstPlatinum = "";
   let firstGold = "";
 
-  const insertExhibitor = (opts: { name: string; featured?: boolean; sponsorLevel?: SponsorLevel | null; boothLabel?: string; categories?: string[] }) => {
+  const insertExhibitor = async (opts: { name: string; featured?: boolean; sponsorLevel?: SponsorLevel | null; boothLabel?: string; categories?: string[] }) => {
     const id = newId("ex");
     const color = pick(PALETTE);
     const country = pick(COUNTRIES);
@@ -316,20 +327,20 @@ function seedDemoInner(d: DB): SeedResult {
     const catName = CATEGORIES[catIds.indexOf(cats[0])].name;
     const desc = pick(BLURBS).replace(/\{name\}/g, opts.name).replace("{year}", String(2005 + Math.floor(rng() * 18))).replace(/\{cat\}/g, catName).replace("{booth}", opts.boothLabel ?? "");
     const slugBase = slugify(opts.name);
-    d.insert(schema.exhibitors).values({
-      id, eventId, externalId: `crm-${1000 + exhibitorIds.length}`, gripId: rng() < 0.9 ? `grip-co-${5000 + exhibitorIds.length}` : null,
-      name: opts.name, slug: slugBase, logoUrl: logoDataUri(opts.name, color), gallery: [],
-      description: desc, website: `https://www.${slugBase.replace(/-/g, "")}.com`, email: `hello@${slugBase.replace(/-/g, "")}.com`,
-      phone: rng() < 0.5 ? `+44 20 ${7000 + Math.floor(rng() * 999)} ${1000 + Math.floor(rng() * 8999)}` : null,
-      country, city, address: `${1 + Math.floor(rng() * 200)} ${pick(["High Street", "Market Square", "Innovation Way", "Harbour Road", "Station Road"])}`, zip: String(10000 + Math.floor(rng() * 89999)),
-      featured: !!opts.featured, sponsorLevel: opts.sponsorLevel ?? null,
-      customButtonTitle: rng() < 0.6 ? "Book a meeting" : null, customButtonUrl: rng() < 0.6 ? `https://grip.events/meet/${slugBase}` : null,
-      videoUrl: rng() < 0.15 ? "https://www.youtube.com/watch?v=dQw4w9WgXcQ" : null,
-      socials: rng() < 0.7 ? { linkedin: `https://www.linkedin.com/company/${slugBase}`, x: `https://x.com/${slugBase.slice(0, 15)}` } : {},
-      tags: rng() < 0.3 ? ["new-this-year"] : [], contactName: pick(["Alex", "Sam", "Priya", "Jonas", "Maria", "Chen", "Fatima", "Luca"]) + " " + pick(["Walker", "Novak", "Okafor", "Schmidt", "Rossi", "Tanaka", "Haddad", "Silva"]),
-      portalToken: secretToken(32),
-    }).run();
-    for (const c of new Set(cats)) d.insert(schema.exhibitorCategories).values({ exhibitorId: id, categoryId: c }).run();
+    q(d.insert(schema.exhibitors).values({
+                  id, eventId, externalId: `crm-${1000 + exhibitorIds.length}`, gripId: rng() < 0.9 ? `grip-co-${5000 + exhibitorIds.length}` : null,
+                  name: opts.name, slug: slugBase, logoUrl: logoDataUri(opts.name, color), gallery: [],
+                  description: desc, website: `https://www.${slugBase.replace(/-/g, "")}.com`, email: `hello@${slugBase.replace(/-/g, "")}.com`,
+                  phone: rng() < 0.5 ? `+44 20 ${7000 + Math.floor(rng() * 999)} ${1000 + Math.floor(rng() * 8999)}` : null,
+                  country, city, address: `${1 + Math.floor(rng() * 200)} ${pick(["High Street", "Market Square", "Innovation Way", "Harbour Road", "Station Road"])}`, zip: String(10000 + Math.floor(rng() * 89999)),
+                  featured: !!opts.featured, sponsorLevel: opts.sponsorLevel ?? null,
+                  customButtonTitle: rng() < 0.6 ? "Book a meeting" : null, customButtonUrl: rng() < 0.6 ? `https://grip.events/meet/${slugBase}` : null,
+                  videoUrl: rng() < 0.15 ? "https://www.youtube.com/watch?v=dQw4w9WgXcQ" : null,
+                  socials: rng() < 0.7 ? { linkedin: `https://www.linkedin.com/company/${slugBase}`, x: `https://x.com/${slugBase.slice(0, 15)}` } : {},
+                  tags: rng() < 0.3 ? ["new-this-year"] : [], contactName: pick(["Alex", "Sam", "Priya", "Jonas", "Maria", "Chen", "Fatima", "Luca"]) + " " + pick(["Walker", "Novak", "Okafor", "Schmidt", "Rossi", "Tanaka", "Haddad", "Silva"]),
+                  portalToken: secretToken(32),
+                }));
+    for (const c of new Set(cats)) q(d.insert(schema.exhibitorCategories).values({ exhibitorId: id, categoryId: c }));
     exhibitorIds.push(id);
     return id;
   };
@@ -344,50 +355,52 @@ function seedDemoInner(d: DB): SeedResult {
       const name = sponsorNames.shift()!;
       usedNames.add(name);
       const level: SponsorLevel = b.type === "island" ? "platinum" : "gold";
-      exId = insertExhibitor({ name, featured: true, sponsorLevel: level, boothLabel: b.label });
+      exId = (await insertExhibitor({ name, featured: true, sponsorLevel: level, boothLabel: b.label }));
       if (level === "platinum" && !firstPlatinum) firstPlatinum = exId;
       if (level === "gold" && !firstGold) firstGold = exId;
       status = "sold";
       featuredBoothIds.push(id);
     } else {
       const r = rng();
-      if (r < 0.8) { status = "sold"; exId = insertExhibitor({ name: companyName(), featured: rng() < 0.05, boothLabel: b.label }); }
-      else if (r < 0.86) { status = "reserved"; if (rng() < 0.5) exId = insertExhibitor({ name: companyName(), boothLabel: b.label }); }
+      if (r < 0.8) { status = "sold"; exId = (await insertExhibitor({ name: companyName(), featured: rng() < 0.05, boothLabel: b.label })); }
+      else if (r < 0.86) { status = "reserved"; if (rng() < 0.5) exId = (await insertExhibitor({ name: companyName(), boothLabel: b.label })); }
       else if (r < 0.9) status = "held";
       else status = "available";
     }
     const area = round(polygonArea(b.polygon), 2);
-    d.insert(schema.booths).values({
-      id, eventId, levelId: levelIds[b.levelKey], label: b.label, externalId: `booth-${b.label}`, polygon: b.polygon, boothType: b.type, status,
-      areaM2: area, widthM: b.w, heightM: b.h, rotationDeg: 0, sortIndex: b.sortIndex,
-      holdUntil: status === "held" ? new Date(Date.now() + 25 * 60e3).toISOString() : null,
-      height3d: b.type === "island" ? 5 : b.type === "sponsor" ? 4 : b.type === "table" ? 1.2 : 2.5,
-    }).run();
-    if (exId) d.insert(schema.boothExhibitors).values({ boothId: id, exhibitorId: exId, sortIndex: 0 }).run();
+    q(d.insert(schema.booths).values({
+                  id, eventId, levelId: levelIds[b.levelKey], label: b.label, externalId: `booth-${b.label}`, polygon: b.polygon, boothType: b.type, status,
+                  areaM2: area, widthM: b.w, heightM: b.h, rotationDeg: 0, sortIndex: b.sortIndex,
+                  holdUntil: status === "held" ? new Date(Date.now() + 25 * 60e3).toISOString() : null,
+                  height3d: b.type === "island" ? 5 : b.type === "sponsor" ? 4 : b.type === "table" ? 1.2 : 2.5,
+                }));
+    if (exId) q(d.insert(schema.boothExhibitors).values({ boothId: id, exhibitorId: exId, sortIndex: 0 }));
   }
   // A few co-exhibitors sharing a booth, and one exhibitor with two booths.
   const someSold = [...boothIds.entries()].filter(([l]) => l.startsWith("A1")).slice(0, 3);
   for (const [, bid] of someSold) {
-    const ex = insertExhibitor({ name: companyName() });
-    d.insert(schema.boothExhibitors).values({ boothId: bid, exhibitorId: ex, sortIndex: 1 }).run();
+    const ex = await insertExhibitor({ name: companyName() });
+    q(d.insert(schema.boothExhibitors).values({ boothId: bid, exhibitorId: ex, sortIndex: 1 }));
   }
 
   // Orders for sold/reserved booths (realistic sales history)
-  const boothRows = d.select().from(schema.booths).all().filter((b) => b.eventId === eventId);
-  const rulesRows = d.select().from(schema.pricingRules).all().filter((r) => r.eventId === eventId);
+  await flush();
+  const boothRows = (await d.select().from(schema.booths).all()).filter((b) => b.eventId === eventId);
+  const boothExhibitorRows = await d.select().from(schema.boothExhibitors).all();
+  const rulesRows = (await d.select().from(schema.pricingRules).all()).filter((r) => r.eventId === eventId);
   for (const b of boothRows) {
     if (b.status !== "sold" && b.status !== "reserved" && b.status !== "held") continue;
     const price = resolveBoothPrice(b, rulesRows, settings);
-    const ex = d.select().from(schema.boothExhibitors).all().find((r) => r.boothId === b.id);
+    const ex = boothExhibitorRows.find((r) => r.boothId === b.id);
     const daysAgo = Math.floor(rng() * 120);
     const created = new Date(Date.now() - daysAgo * 86400e3).toISOString();
-    d.insert(schema.orders).values({
-      id: newId("or"), eventId, boothId: b.id, exhibitorId: ex?.exhibitorId ?? null,
-      status: b.status === "sold" ? (rng() < 0.7 ? "paid" : "invoiced") : b.status === "reserved" ? "pending_payment" : "hold",
-      amountCents: price?.priceCents ?? 0, currency: price?.currency ?? "GBP", provider: rng() < 0.6 ? "stripe" : "invoice",
-      providerRef: rng() < 0.6 ? `pi_${secretToken(14)}` : null, expiresAt: b.holdUntil, contactEmail: "sales@example.com", createdAt: created, updatedAt: created,
-      paidAt: b.status === "sold" ? created : null,
-    }).run();
+    q(d.insert(schema.orders).values({
+                  id: newId("or"), eventId, boothId: b.id, exhibitorId: ex?.exhibitorId ?? null,
+                  status: b.status === "sold" ? (rng() < 0.7 ? "paid" : "invoiced") : b.status === "reserved" ? "pending_payment" : "hold",
+                  amountCents: price?.priceCents ?? 0, currency: price?.currency ?? "GBP", provider: rng() < 0.6 ? "stripe" : "invoice",
+                  providerRef: rng() < 0.6 ? `pi_${secretToken(14)}` : null, expiresAt: b.holdUntil, contactEmail: "sales@example.com", createdAt: created, updatedAt: created,
+                  paidAt: b.status === "sold" ? created : null,
+                }));
   }
 
   // Sessions on the stage and booth demos
@@ -402,18 +415,18 @@ function seedDemoInner(d: DB): SeedResult {
         if (loc !== stageId && h % 2 === 0) continue;
         const t = titles[sIdx % titles.length];
         sIdx++;
-        d.insert(schema.sessions).values({
-          id: newId("se"), eventId, externalId: `sess-${sIdx}`, title: t, description: `${t}. A 45-minute session with Q&A.`,
-          startsAt: `${day}T${String(h).padStart(2, "0")}:00:00.000Z`, endsAt: `${day}T${String(h).padStart(2, "0")}:45:00.000Z`,
-          elementId: loc, track, speakers: [{ name: pick(["Dana Whitfield", "Omar Haddad", "Ingrid Lund", "Kwame Mensah", "Yuki Sato"]), title: pick(["CEO", "CTO", "Head of Events", "Founder"]), company: pick(ADJ) + " " + pick(NOUN) }],
-        }).run();
+        q(d.insert(schema.sessions).values({
+                              id: newId("se"), eventId, externalId: `sess-${sIdx}`, title: t, description: `${t}. A 45-minute session with Q&A.`,
+                              startsAt: `${day}T${String(h).padStart(2, "0")}:00:00.000Z`, endsAt: `${day}T${String(h).padStart(2, "0")}:45:00.000Z`,
+                              elementId: loc, track, speakers: [{ name: pick(["Dana Whitfield", "Omar Haddad", "Ingrid Lund", "Kwame Mensah", "Yuki Sato"]), title: pick(["CEO", "CTO", "Head of Events", "Founder"]), company: pick(ADJ) + " " + pick(NOUN) }],
+                            }));
       }
     }
   }
   const demoBooths = [...boothIds.entries()].filter(([l]) => l.startsWith("S")).slice(0, 3);
-  demoBooths.forEach(([label, bid], i) => {
-    d.insert(schema.sessions).values({ id: newId("se"), eventId, title: `Live demo at booth ${label}`, description: "Product demo and giveaways.", startsAt: `2026-11-17T${11 + i}:30:00.000Z`, endsAt: `2026-11-17T${12 + i}:00:00.000Z`, boothId: bid, track: "Booth demos", speakers: [] }).run();
-  });
+  for (const [i, [label, bid]] of demoBooths.entries()) {
+    q(d.insert(schema.sessions).values({ id: newId("se"), eventId, title: `Live demo at booth ${label}`, description: "Product demo and giveaways.", startsAt: `2026-11-17T${11 + i}:30:00.000Z`, endsAt: `2026-11-17T${12 + i}:00:00.000Z`, boothId: bid, track: "Booth demos", speakers: [] }));
+  }
 
   // Sponsorship packages and booth extras
   const extraIds = [
@@ -422,22 +435,22 @@ function seedDemoInner(d: DB): SeedResult {
     { id: newId("sp"), kind: "booth_extra" as const, name: "Extra power (32A)", description: "Three-phase power to the booth.", priceCents: 45_000, limitPerExhibitor: 2 },
     { id: newId("sp"), kind: "booth_extra" as const, name: "Lead scanner licence", description: "One Grip lead-capture licence.", priceCents: 29_000, limitPerExhibitor: 10 },
   ];
-  extraIds.forEach((x, i) => d.insert(schema.extras).values({ id: x.id, eventId, kind: x.kind, name: x.name, description: x.description, priceCents: x.priceCents, currency: "GBP", limitPerEvent: x.limitPerEvent ?? null, limitPerExhibitor: x.limitPerExhibitor ?? null, sortIndex: i }).run());
-  d.insert(schema.exhibitorExtras).values([
-    { id: newId("sp"), extraId: extraIds[0].id, exhibitorId: firstPlatinum, quantity: 1 },
-    { id: newId("sp"), extraId: extraIds[3].id, exhibitorId: firstPlatinum, quantity: 4 },
-    { id: newId("sp"), extraId: extraIds[2].id, exhibitorId: firstGold, quantity: 1 },
-  ]).run();
+  for (const [i, x] of extraIds.entries()) { q(d.insert(schema.extras).values({ id: x.id, eventId, kind: x.kind, name: x.name, description: x.description, priceCents: x.priceCents, currency: "GBP", limitPerEvent: x.limitPerEvent ?? null, limitPerExhibitor: x.limitPerExhibitor ?? null, sortIndex: i })); }
+  q(d.insert(schema.exhibitorExtras).values([
+            { id: newId("sp"), extraId: extraIds[0].id, exhibitorId: firstPlatinum, quantity: 1 },
+            { id: newId("sp"), extraId: extraIds[3].id, exhibitorId: firstPlatinum, quantity: 4 },
+            { id: newId("sp"), extraId: extraIds[2].id, exhibitorId: firstGold, quantity: 1 },
+          ]));
 
   // Sponsor banners
-  d.insert(schema.banners).values([
-    { id: newId("ba"), eventId, exhibitorId: firstPlatinum, placement: "search_top", title: "Platinum sponsor", imageUrl: bannerDataUri("Nimbus Cloud · Platinum Sponsor", "#1d4ed8"), linkUrl: "https://example.com/nimbus", weight: 3 },
-    { id: newId("ba"), eventId, exhibitorId: firstGold, placement: "list_inline", title: "Gold sponsor", imageUrl: bannerDataUri("Verdant Energy · Visit booth S4", "#4d7c0f"), linkUrl: "https://example.com/verdant", weight: 2 },
-    { id: newId("ba"), eventId, exhibitorId: null, placement: "map_corner", title: "Grip app", imageUrl: bannerDataUri("Plan meetings in the Grip app", "#5b21b6"), linkUrl: "https://grip.events", weight: 1 },
-  ]).run();
+  q(d.insert(schema.banners).values([
+            { id: newId("ba"), eventId, exhibitorId: firstPlatinum, placement: "search_top", title: "Platinum sponsor", imageUrl: bannerDataUri("Nimbus Cloud · Platinum Sponsor", "#1d4ed8"), linkUrl: "https://example.com/nimbus", weight: 3 },
+            { id: newId("ba"), eventId, exhibitorId: firstGold, placement: "list_inline", title: "Gold sponsor", imageUrl: bannerDataUri("Verdant Energy · Visit booth S4", "#4d7c0f"), linkUrl: "https://example.com/verdant", weight: 2 },
+            { id: newId("ba"), eventId, exhibitorId: null, placement: "map_corner", title: "Grip app", imageUrl: bannerDataUri("Plan meetings in the Grip app", "#5b21b6"), linkUrl: "https://grip.events", weight: 1 },
+          ]));
 
   // Webhook example (inactive by default so nothing is called out)
-  d.insert(schema.webhooks).values({ id: newId("wh"), orgId, eventId, url: "https://example.com/hooks/tessera", secret: secretToken(32), events: ["*"], active: false }).run();
+  q(d.insert(schema.webhooks).values({ id: newId("wh"), orgId, eventId, url: "https://example.com/hooks/tessera", secret: secretToken(32), events: ["*"], active: false }));
 
   // Synthetic analytics for the last 14 days
   const exRows = exhibitorIds;
@@ -457,28 +470,29 @@ function seedDemoInner(d: DB): SeedResult {
       if (rng() < 0.2) analytics.push({ id: newId("an"), eventId, type: "bookmark", sessionId: sid, targetType: "exhibitor", targetId: pick(exRows), createdAt: ts });
     }
   }
-  for (let i = 0; i < analytics.length; i += 500) d.insert(schema.analyticsEvents).values(analytics.slice(i, i + 500)).run();
+  for (let i = 0; i < analytics.length; i += 500) q(d.insert(schema.analyticsEvents).values(analytics.slice(i, i + 500)));
 
   // A second, draft event with a small single-level layout so the events list has more than one item.
   const draftEventId = newId("ev");
-  d.insert(schema.events).values({
-    id: draftEventId, orgId, slug: "grip-connect-berlin-2027", name: "Grip Connect Berlin 2027", subtitle: "Coming soon",
-    startsAt: "2027-03-09T09:00:00.000Z", endsAt: "2027-03-10T18:00:00.000Z", timezone: "Europe/Berlin", venueName: "Messe Berlin", venueAddress: "Messedamm 22, 14055 Berlin", venueLat: 52.5019, venueLng: 13.2717,
-    status: "draft", settings: { ...DEFAULT_SETTINGS, sales: { ...DEFAULT_SETTINGS.sales, currency: "EUR" } },
-  }).run();
+  q(d.insert(schema.events).values({
+            id: draftEventId, orgId, slug: "grip-connect-berlin-2027", name: "Grip Connect Berlin 2027", subtitle: "Coming soon",
+            startsAt: "2027-03-09T09:00:00.000Z", endsAt: "2027-03-10T18:00:00.000Z", timezone: "Europe/Berlin", venueName: "Messe Berlin", venueAddress: "Messedamm 22, 14055 Berlin", venueLat: 52.5019, venueLng: 13.2717,
+            status: "draft", settings: { ...DEFAULT_SETTINGS, sales: { ...DEFAULT_SETTINGS.sales, currency: "EUR" } },
+          }));
   const dl = newId("lv");
-  d.insert(schema.levels).values({ id: dl, eventId: draftEventId, name: "Hall 1", shortName: "H1", sortIndex: 0, widthM: 100, heightM: 60, georef: { originLat: 52.5019, originLng: 13.2717, rotationDeg: 0, metersPerUnit: 1 } }).run();
-  d.insert(schema.elements).values({ id: newId("el"), eventId: draftEventId, levelId: dl, kind: "wall", geometry: { type: "polyline", points: [[5, 5], [95, 5], [95, 55], [5, 55], [5, 5]] }, props: { name: "Hall 1 outline", strokeWidth: 0.4 }, sortIndex: 0 }).run();
+  q(d.insert(schema.levels).values({ id: dl, eventId: draftEventId, name: "Hall 1", shortName: "H1", sortIndex: 0, widthM: 100, heightM: 60, georef: { originLat: 52.5019, originLng: 13.2717, rotationDeg: 0, metersPerUnit: 1 } }));
+  q(d.insert(schema.elements).values({ id: newId("el"), eventId: draftEventId, levelId: dl, kind: "wall", geometry: { type: "polyline", points: [[5, 5], [95, 5], [95, 55], [5, 55], [5, 5]] }, props: { name: "Hall 1 outline", strokeWidth: 0.4 }, sortIndex: 0 }));
   let k = 0;
   for (const y of [20, 24]) for (let x = 10; x < 90; x += 4) {
     k++;
-    d.insert(schema.booths).values({ id: newId("bo"), eventId: draftEventId, levelId: dl, label: `${y === 20 ? "A" : "B"}${String(k).padStart(2, "0")}`, polygon: rectPolygon(x, y, 4, 4), boothType: "standard", status: "available", areaM2: 16, widthM: 4, heightM: 4, sortIndex: k }).run();
+    q(d.insert(schema.booths).values({ id: newId("bo"), eventId: draftEventId, levelId: dl, label: `${y === 20 ? "A" : "B"}${String(k).padStart(2, "0")}`, polygon: rectPolygon(x, y, 4, 4), boothType: "standard", status: "available", areaM2: 16, widthM: 4, heightM: 4, sortIndex: k }));
   }
   const dg = polylinesToGraph([{ points: [[8, 16], [92, 16]] }, { points: [[8, 30], [92, 30]] }, { points: [[8, 16], [8, 30]] }, { points: [[92, 16], [92, 30]] }]);
   const dn = new Map<string, string>();
-  for (const n of dg.nodes) { const id = newId("wn"); dn.set(n.key, id); d.insert(schema.wayNodes).values({ id, eventId: draftEventId, levelId: dl, x: n.x, y: n.y }).run(); }
-  for (const e of dg.edges) d.insert(schema.wayEdges).values({ id: newId("we"), eventId: draftEventId, levelId: dl, fromNodeId: dn.get(e.from)!, toNodeId: dn.get(e.to)!, accessible: true, oneWay: false, virtual: false, weight: 1 }).run();
+  for (const n of dg.nodes) { const id = newId("wn"); dn.set(n.key, id); q(d.insert(schema.wayNodes).values({ id, eventId: draftEventId, levelId: dl, x: n.x, y: n.y })); }
+  for (const e of dg.edges) q(d.insert(schema.wayEdges).values({ id: newId("we"), eventId: draftEventId, levelId: dl, fromNodeId: dn.get(e.from)!, toNodeId: dn.get(e.to)!, accessible: true, oneWay: false, virtual: false, weight: 1 }));
 
+  await flush();
   return { orgId, eventId, draftEventId, adminEmail: DEMO.adminEmail, adminPassword: DEMO.adminPassword, apiKey: DEMO.apiKey };
 }
 

@@ -13,13 +13,13 @@ export const OPTIONS = () => optionsResponse();
 export const GET = withApi(async (req: Request, ctx: { params: Promise<{ event: string; format: string }> }) => {
   const { event: slug, format } = await ctx.params;
   const { event } = await requireEvent(req, slug);
-  const bundle = getPublishedBundle(db(), event.id) ?? buildBundle(db(), event.id)!;
+  const bundle = (await getPublishedBundle(db(), event.id)) ?? (await buildBundle(db(), event.id))!;
   const file = (body: string, type: string, name: string) => new NextResponse(body, { headers: { ...CORS_HEADERS, "Content-Type": type, "Content-Disposition": `attachment; filename="${event.slug}-${name}"` } });
   switch (format) {
     case "expofp": return NextResponse.json(toExpoFpData(bundle), { headers: CORS_HEADERS });
     case "geojson": return file(JSON.stringify(bundleToGeoJson(bundle)), "application/geo+json", "floorplan.geojson");
-    case "booths.csv": return file(exportBoothsCsv(event), "text/csv; charset=utf-8", "booths.csv");
-    case "exhibitors.csv": return file(exportExhibitorsCsv(event), "text/csv; charset=utf-8", "exhibitors.csv");
+    case "booths.csv": return file(await exportBoothsCsv(event), "text/csv; charset=utf-8", "booths.csv");
+    case "exhibitors.csv": return file(await exportExhibitorsCsv(event), "text/csv; charset=utf-8", "exhibitors.csv");
     case "bundle": return NextResponse.json(bundle, { headers: CORS_HEADERS });
     case "offline": return file(JSON.stringify({ format: "tessera.offline", version: bundle.version, generatedAt: new Date().toISOString(), viewerUrl: `/e/${event.slug}`, bundle }), "application/json", `offline-v${bundle.version}.json`);
     default: throw badRequest(`Unknown export format '${format}'. Use expofp, geojson, booths.csv, exhibitors.csv, bundle or offline.`);

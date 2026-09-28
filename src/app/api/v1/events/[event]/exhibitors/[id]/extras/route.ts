@@ -5,16 +5,16 @@ import { assignExtra, listExhibitorExtras, removeExtra } from "@/lib/services/ex
 
 type Ctx = { params: Promise<{ event: string; id: string }> };
 export const OPTIONS = () => optionsResponse();
-export const GET = withApi(async (req: Request, ctx: Ctx) => { const p = await ctx.params; const { event } = await requireEvent(req, p.event); const e = getExhibitor(event.id, p.id); if (!e) throw notFound("exhibitor"); return ok(listExhibitorExtras(event.id, e.id)); });
+export const GET = withApi(async (req: Request, ctx: Ctx) => { const p = await ctx.params; const { event } = await requireEvent(req, p.event); const e = await getExhibitor(event.id, p.id); if (!e) throw notFound("exhibitor"); return ok(await listExhibitorExtras(event.id, e.id)); });
 export const POST = withApi(async (req: Request, ctx: Ctx) => {
   const p = await ctx.params; const { event } = await requireEvent(req, p.event, "write");
-  const e = getExhibitor(event.id, p.id); if (!e) throw notFound("exhibitor");
+  const e = await getExhibitor(event.id, p.id); if (!e) throw notFound("exhibitor");
   const { extraId, quantity, boothId } = await parseBody(req, z.object({ extraId: z.string(), quantity: z.number().int().positive().optional(), boothId: z.string().nullish() }));
-  return ok(assignExtra(event, e.id, extraId, quantity ?? 1, boothId));
+  return ok(await assignExtra(event, e.id, extraId, quantity ?? 1, boothId));
 });
 export const DELETE = withApi(async (req: Request, ctx: Ctx) => {
   const p = await ctx.params; const { event } = await requireEvent(req, p.event, "write");
-  const e = getExhibitor(event.id, p.id); if (!e) throw notFound("exhibitor");
+  const e = await getExhibitor(event.id, p.id); if (!e) throw notFound("exhibitor");
   const { extraId } = await parseBody(req, z.object({ extraId: z.string() }));
-  return ok(removeExtra(event, e.id, extraId));
+  return ok(await removeExtra(event, e.id, extraId));
 });

@@ -15,6 +15,13 @@
       "when": 1789395249450,
       "tag": "0001_extras_metadata",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1790594129181,
+      "tag": "0002_shared_storage",
+      "breakpoints": true
     }
   ]
 }

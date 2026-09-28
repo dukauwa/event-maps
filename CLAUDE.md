@@ -1,6 +1,6 @@
 # Tessera — engineering conventions
 
-Tessera is an interactive event floor plan product (ExpoFP replacement): floor plan designer, booth sales, attendee wayfinding, public JSON API, embed SDK, webhooks. Next.js 16 App Router, React 19, TypeScript strict, Tailwind 4, Drizzle ORM on SQLite (better-sqlite3), MapLibre GL JS 6.
+Tessera is an interactive event floor plan product (ExpoFP replacement): floor plan designer, booth sales, attendee wayfinding, public JSON API, embed SDK, webhooks. Next.js 16 App Router, React 19, TypeScript strict, Tailwind 4, Drizzle ORM on libSQL (local SQLite file; Turso when hosted), MapLibre GL JS 6.
 
 @AGENTS.md
 
@@ -14,7 +14,7 @@ Tessera is an interactive event floor plan product (ExpoFP replacement): floor p
 ## Layout
 - `src/lib/domain/types.ts` — shared domain + bundle types. Plan coordinates are metres, x right, y DOWN.
 - `src/lib/domain/geometry.ts` — polygon helpers, plan↔lng/lat transforms (`planToLngLat`, `lngLatToPlan`).
-- `src/lib/db/schema.ts` — Drizzle schema. `db()` from `src/lib/db` is a process singleton; migrations in `drizzle/` run on open. After schema changes run `pnpm db:generate`.
+- `src/lib/db/schema.ts` — Drizzle schema. `db()` from `src/lib/db` is a process singleton over libSQL: a local SQLite file, or Turso when `TURSO_DATABASE_URL` is set (required on serverless hosts, where each function has its own /tmp). Every query is async (`await db().select()…get()`); migrations and the demo seed run before the first query. After schema changes run `pnpm db:generate`.
 - `src/lib/bundle.ts` — `buildBundle` (live), `publishEvent` (snapshot), `getViewerBundle`.
 - `src/lib/routing/` — wayfinding engine (A*, multi-level, optimize, auto-graph).
 - `src/lib/sdk-protocol.ts` — postMessage contract between viewer (iframe) and the embed SDK.

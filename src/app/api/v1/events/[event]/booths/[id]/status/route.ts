@@ -6,8 +6,8 @@ import { BOOTH_STATUSES } from "@/lib/domain/types";
 export const OPTIONS = () => optionsResponse();
 export const POST = withApi(async (req: Request, ctx: { params: Promise<{ event: string; id: string }> }) => {
   const p = await ctx.params; const { event } = await requireEvent(req, p.event, "write");
-  const b = getBooth(event.id, p.id); if (!b) throw notFound("booth");
+  const b = await getBooth(event.id, p.id); if (!b) throw notFound("booth");
   const { status, holdMinutes } = await parseBody(req, z.object({ status: z.enum(BOOTH_STATUSES), holdMinutes: z.number().int().positive().optional() }));
   const holdUntil = status === "held" ? new Date(Date.now() + (holdMinutes ?? event.settings.sales.holdMinutes ?? 30) * 60e3).toISOString() : null;
-  return ok(setBoothStatus(event, b.id, status, holdUntil));
+  return ok(await setBoothStatus(event, b.id, status, holdUntil));
 });

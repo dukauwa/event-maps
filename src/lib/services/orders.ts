@@ -22,22 +22,22 @@ export const reserveInput = z.object({
 });
 export type ReserveInput = z.infer<typeof reserveInput>;
 
-export function listOrders(eventId: string, filter: { status?: string; boothId?: string; exhibitorId?: string } = {}) {
-  let rows = db().select().from(schema.orders).where(eq(schema.orders.eventId, eventId)).orderBy(desc(schema.orders.createdAt)).all();
+export async function listOrders(eventId: string, filter: { status?: string; boothId?: string; exhibitorId?: string } = {}) {
+  let rows = await db().select().from(schema.orders).where(eq(schema.orders.eventId, eventId)).orderBy(desc(schema.orders.createdAt)).all();
   if (filter.status) rows = rows.filter((o) => o.status === filter.status);
   if (filter.boothId) rows = rows.filter((o) => o.boothId === filter.boothId);
   if (filter.exhibitorId) rows = rows.filter((o) => o.exhibitorId === filter.exhibitorId);
   return rows;
 }
 
-export function getOrder(eventId: string, id: string) {
-  return db().select().from(schema.orders).where(and(eq(schema.orders.eventId, eventId), eq(schema.orders.id, id))).get() ?? null;
+export async function getOrder(eventId: string, id: string) {
+  return (await db().select().from(schema.orders).where(and(eq(schema.orders.eventId, eventId), eq(schema.orders.id, id))).get()) ?? null;
 }
 
-export function quoteBooth(ev: Event, boothId: string) {
-  const booth = getBooth(ev.id, boothId);
+export async function quoteBooth(ev: Event, boothId: string) {
+  const booth = await getBooth(ev.id, boothId);
   if (!booth) throw notFound("booth");
-  const price = resolveBoothPrice(booth, listPricingRules(ev.id), ev.settings);
+  const price = resolveBoothPrice(booth, await listPricingRules(ev.id), ev.settings);
   const taxCents = price ? Math.round((price.priceCents * ev.settings.sales.taxPercent) / 100) : 0;
   return { booth, price, taxCents, totalCents: (price?.priceCents ?? 0) + taxCents, currency: price?.currency ?? ev.settings.sales.currency };
 }
@@ -46,28 +46,28 @@ export function quoteBooth(ev: Event, boothId: string) {
  * Public reservation: place a hold on an available booth and create an order.
  * Mode 'reserve' → order stays 'pending_payment' (organiser confirms); 'buy' → checkout URL; 'inquiry' → no hold, just a lead.
  */
-export function reserveBooth(ev: Event, input: ReserveInput, origin: string): { order: Order; checkoutUrl: string | null } {
+export async function reserveBooth(ev: Event, input: ReserveInput, origin: string): Promise<{ order: Order; checkoutUrl: string | null }> {
   // `features.allowReservation` only decides whether the attendee map shows a Reserve button; the booking view and portal always can.
   if (!ev.settings.sales.enabled) throw badRequest("Booth sales are not enabled for this event");
-  releaseExpiredHolds(ev);
-  const { booth, price, taxCents, currency } = quoteBooth(ev, input.boothId);
+  await releaseExpiredHolds(ev);
+  const { booth, price, taxCents, currency } = await quoteBooth(ev, input.boothId);
   const mode = ev.settings.sales.mode;
   if (mode !== "inquiry" && booth.status !== "available") throw conflict(`Booth ${booth.label} is ${booth.status}`);
 
   let exhibitorId = input.exhibitorId ?? null;
-  if (exhibitorId && !getExhibitor(ev.id, exhibitorId)) exhibitorId = null;
+  if (exhibitorId && !(await getExhibitor(ev.id, exhibitorId))) exhibitorId = null;
   if (!exhibitorId) {
-    const existing = db().select().from(schema.exhibitors).where(and(eq(schema.exhibitors.eventId, ev.id), eq(schema.exhibitors.email, input.contactEmail))).get();
-    exhibitorId = existing?.id ?? createExhibitor(ev, { name: input.company, email: input.contactEmail, contactName: input.contactName }).id;
+    const existing = await db().select().from(schema.exhibitors).where(and(eq(schema.exhibitors.eventId, ev.id), eq(schema.exhibitors.email, input.contactEmail))).get();
+    exhibitorId = existing?.id ?? (await createExhibitor(ev, { name: input.company, email: input.contactEmail, contactName: input.contactName })).id;
   }
 
   // Add-ons: assign to the exhibitor (limits enforced) and add to the order total.
   let extrasCents = 0;
   const extraNotes: string[] = [];
   for (const x of input.extras ?? []) {
-    const extra = getExtra(ev.id, x.extraId);
+    const extra = await getExtra(ev.id, x.extraId);
     if (!extra || !extra.reserveOrBuyAllowed) continue;
-    assignExtra(ev, exhibitorId, extra.id, x.quantity, booth.id);
+    await assignExtra(ev, exhibitorId, extra.id, x.quantity, booth.id);
     extrasCents += (extra.priceCents ?? 0) * x.quantity;
     extraNotes.push(`${x.quantity}× ${extra.name}`);
   }
@@ -76,23 +76,23 @@ export function reserveBooth(ev: Event, input: ReserveInput, origin: string): { 
   const id = newId("or");
   const status = mode === "buy" ? "hold" : mode === "reserve" ? "pending_payment" : "hold";
   const extrasTax = Math.round((extrasCents * ev.settings.sales.taxPercent) / 100);
-  db().insert(schema.orders).values({
-    id, eventId: ev.id, boothId: booth.id, exhibitorId, status, amountCents: (price?.priceCents ?? 0) + extrasCents, taxCents: taxCents + extrasTax, currency,
-    provider: ev.settings.sales.provider, expiresAt: mode === "reserve" ? null : expiresAt, company: input.company, contactName: input.contactName, contactEmail: input.contactEmail, notes: [input.notes, extraNotes.length ? `Add-ons: ${extraNotes.join(", ")}` : null].filter(Boolean).join("\n") || null,
-  }).run();
+  await db().insert(schema.orders).values({
+            id, eventId: ev.id, boothId: booth.id, exhibitorId, status, amountCents: (price?.priceCents ?? 0) + extrasCents, taxCents: taxCents + extrasTax, currency,
+            provider: ev.settings.sales.provider, expiresAt: mode === "reserve" ? null : expiresAt, company: input.company, contactName: input.contactName, contactEmail: input.contactEmail, notes: [input.notes, extraNotes.length ? `Add-ons: ${extraNotes.join(", ")}` : null].filter(Boolean).join("\n") || null,
+          }).run();
   if (mode === "reserve") {
-    setBoothStatus(ev, booth.id, "reserved");
-    assignExhibitor(ev, booth.id, exhibitorId);
+    await setBoothStatus(ev, booth.id, "reserved");
+    await assignExhibitor(ev, booth.id, exhibitorId);
   } else if (mode === "buy") {
-    setBoothStatus(ev, booth.id, "held", expiresAt);
+    await setBoothStatus(ev, booth.id, "held", expiresAt);
   }
-  let order = getOrder(ev.id, id)!;
-  emitWebhook(ev.orgId, ev.id, "order.created", order);
+  let order = (await getOrder(ev.id, id))!;
+  await emitWebhook(ev.orgId, ev.id, "order.created", order);
   let checkoutUrl: string | null = null;
   if (mode === "buy") {
     checkoutUrl = createCheckout(ev, order, origin);
-    db().update(schema.orders).set({ checkoutUrl }).where(eq(schema.orders.id, id)).run();
-    order = getOrder(ev.id, id)!;
+    await db().update(schema.orders).set({ checkoutUrl }).where(eq(schema.orders.id, id)).run();
+    order = (await getOrder(ev.id, id))!;
   }
   return { order, checkoutUrl };
 }
@@ -113,7 +113,7 @@ function createCheckout(ev: Event, order: Order, origin: string): string {
 export async function createStripeCheckoutSession(ev: Event, order: Order, origin: string): Promise<string> {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) throw badRequest("Stripe is not configured (STRIPE_SECRET_KEY)");
-  const booth = getBooth(ev.id, order.boothId)!;
+  const booth = (await getBooth(ev.id, order.boothId))!;
   const params = new URLSearchParams();
   params.set("mode", "payment");
   params.set("success_url", `${origin}/e/${ev.slug}/reserve/${order.boothId}/done?order=${order.id}&session_id={CHECKOUT_SESSION_ID}`);
@@ -130,74 +130,74 @@ export async function createStripeCheckoutSession(ev: Event, order: Order, origi
   const res = await fetch("https://api.stripe.com/v1/checkout/sessions", { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/x-www-form-urlencoded" }, body: params });
   const json = (await res.json()) as { url?: string; id?: string; error?: { message: string } };
   if (!res.ok || !json.url) throw badRequest(`Stripe error: ${json.error?.message ?? res.status}`);
-  db().update(schema.orders).set({ providerRef: json.id ?? null, checkoutUrl: json.url, provider: "stripe" }).where(eq(schema.orders.id, order.id)).run();
+  await db().update(schema.orders).set({ providerRef: json.id ?? null, checkoutUrl: json.url, provider: "stripe" }).where(eq(schema.orders.id, order.id)).run();
   return json.url;
 }
 
-export function markOrderPaid(ev: Event, id: string, providerRef?: string | null) {
-  const order = getOrder(ev.id, id);
+export async function markOrderPaid(ev: Event, id: string, providerRef?: string | null) {
+  const order = await getOrder(ev.id, id);
   if (!order) throw notFound("order");
   if (order.status === "paid") return order;
   if (order.status === "cancelled" || order.status === "expired") throw conflict(`Order is ${order.status}`);
   const now = new Date().toISOString();
-  db().update(schema.orders).set({ status: "paid", paidAt: now, providerRef: providerRef ?? order.providerRef, updatedAt: now }).where(eq(schema.orders.id, id)).run();
-  setBoothStatus(ev, order.boothId, "sold");
-  if (order.exhibitorId) assignExhibitor(ev, order.boothId, order.exhibitorId);
-  const after = getOrder(ev.id, id)!;
-  emitWebhook(ev.orgId, ev.id, "order.paid", after);
+  await db().update(schema.orders).set({ status: "paid", paidAt: now, providerRef: providerRef ?? order.providerRef, updatedAt: now }).where(eq(schema.orders.id, id)).run();
+  await setBoothStatus(ev, order.boothId, "sold");
+  if (order.exhibitorId) await assignExhibitor(ev, order.boothId, order.exhibitorId);
+  const after = (await getOrder(ev.id, id))!;
+  await emitWebhook(ev.orgId, ev.id, "order.paid", after);
   return after;
 }
 
-export function markOrderInvoiced(ev: Event, id: string) {
-  const order = getOrder(ev.id, id);
+export async function markOrderInvoiced(ev: Event, id: string) {
+  const order = await getOrder(ev.id, id);
   if (!order) throw notFound("order");
   const now = new Date().toISOString();
-  db().update(schema.orders).set({ status: "invoiced", provider: "invoice", expiresAt: null, updatedAt: now }).where(eq(schema.orders.id, id)).run();
-  setBoothStatus(ev, order.boothId, "reserved");
-  if (order.exhibitorId) assignExhibitor(ev, order.boothId, order.exhibitorId);
-  return getOrder(ev.id, id)!;
+  await db().update(schema.orders).set({ status: "invoiced", provider: "invoice", expiresAt: null, updatedAt: now }).where(eq(schema.orders.id, id)).run();
+  await setBoothStatus(ev, order.boothId, "reserved");
+  if (order.exhibitorId) await assignExhibitor(ev, order.boothId, order.exhibitorId);
+  return (await getOrder(ev.id, id))!;
 }
 
-export function cancelOrder(ev: Event, id: string, reason?: string) {
-  const order = getOrder(ev.id, id);
+export async function cancelOrder(ev: Event, id: string, reason?: string) {
+  const order = await getOrder(ev.id, id);
   if (!order) throw notFound("order");
   if (order.status === "paid") throw conflict("Refund paid orders instead of cancelling");
   const now = new Date().toISOString();
-  db().update(schema.orders).set({ status: "cancelled", notes: reason ? `${order.notes ?? ""}\nCancelled: ${reason}`.trim() : order.notes, updatedAt: now }).where(eq(schema.orders.id, id)).run();
-  const booth = getBooth(ev.id, order.boothId);
-  if (booth && (booth.status === "held" || booth.status === "reserved")) setBoothStatus(ev, booth.id, "available");
-  const after = getOrder(ev.id, id)!;
-  emitWebhook(ev.orgId, ev.id, "order.cancelled", after);
+  await db().update(schema.orders).set({ status: "cancelled", notes: reason ? `${order.notes ?? ""}\nCancelled: ${reason}`.trim() : order.notes, updatedAt: now }).where(eq(schema.orders.id, id)).run();
+  const booth = await getBooth(ev.id, order.boothId);
+  if (booth && (booth.status === "held" || booth.status === "reserved")) await setBoothStatus(ev, booth.id, "available");
+  const after = (await getOrder(ev.id, id))!;
+  await emitWebhook(ev.orgId, ev.id, "order.cancelled", after);
   return after;
 }
 
-export function refundOrder(ev: Event, id: string) {
-  const order = getOrder(ev.id, id);
+export async function refundOrder(ev: Event, id: string) {
+  const order = await getOrder(ev.id, id);
   if (!order) throw notFound("order");
   const now = new Date().toISOString();
-  db().update(schema.orders).set({ status: "refunded", updatedAt: now }).where(eq(schema.orders.id, id)).run();
-  setBoothStatus(ev, order.boothId, "available");
-  return getOrder(ev.id, id)!;
+  await db().update(schema.orders).set({ status: "refunded", updatedAt: now }).where(eq(schema.orders.id, id)).run();
+  await setBoothStatus(ev, order.boothId, "available");
+  return (await getOrder(ev.id, id))!;
 }
 
 /** Expire holds/pending orders whose timer ran out. Returns the number expired. */
-export function expireOrders(ev: Event) {
+export async function expireOrders(ev: Event) {
   const now = new Date().toISOString();
-  const rows = db().select().from(schema.orders).where(and(eq(schema.orders.eventId, ev.id), eq(schema.orders.status, "hold"))).all().filter((o) => o.expiresAt && o.expiresAt < now);
+  const rows = (await db().select().from(schema.orders).where(and(eq(schema.orders.eventId, ev.id), eq(schema.orders.status, "hold"))).all()).filter((o) => o.expiresAt && o.expiresAt < now);
   for (const o of rows) {
-    db().update(schema.orders).set({ status: "expired", updatedAt: now }).where(eq(schema.orders.id, o.id)).run();
-    const booth = getBooth(ev.id, o.boothId);
-    if (booth?.status === "held") setBoothStatus(ev, booth.id, "available");
-    emitWebhook(ev.orgId, ev.id, "order.expired", { ...o, status: "expired" });
+    await db().update(schema.orders).set({ status: "expired", updatedAt: now }).where(eq(schema.orders.id, o.id)).run();
+    const booth = await getBooth(ev.id, o.boothId);
+    if (booth?.status === "held") await setBoothStatus(ev, booth.id, "available");
+    await emitWebhook(ev.orgId, ev.id, "order.expired", { ...o, status: "expired" });
   }
-  releaseExpiredHolds(ev);
+  await releaseExpiredHolds(ev);
   return rows.length;
 }
 
-export function salesSummary(ev: Event) {
-  const booths = db().select().from(schema.booths).where(eq(schema.booths.eventId, ev.id)).all();
-  const orders = listOrders(ev.id);
-  const rules = listPricingRules(ev.id);
+export async function salesSummary(ev: Event) {
+  const booths = await db().select().from(schema.booths).where(eq(schema.booths.eventId, ev.id)).all();
+  const orders = await listOrders(ev.id);
+  const rules = await listPricingRules(ev.id);
   const byStatus: Record<string, number> = {};
   let inventoryValueCents = 0, soldValueCents = 0, areaTotal = 0, areaSold = 0;
   for (const b of booths) {

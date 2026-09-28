@@ -13,7 +13,7 @@ export async function requireAdmin(next?: string): Promise<AuthUser> {
 /** Event owned by the signed-in organiser's org, or 404. */
 export async function loadEvent(id: string): Promise<{ user: AuthUser; event: Event }> {
   const user = await requireAdmin(`/admin/events/${id}`);
-  const event = getEvent(user.orgId, id);
+  const event = await getEvent(user.orgId, id);
   if (!event) notFound();
   return { user, event };
 }

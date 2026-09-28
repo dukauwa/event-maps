@@ -6,5 +6,5 @@ export const OPTIONS = () => optionsResponse();
 export const POST = withApi(async (req: Request, ctx: { params: Promise<{ event: string }> }) => {
   const { event } = await requireEvent(req, (await ctx.params).event, "write");
   const { ids } = await parseBody(req, z.object({ ids: z.array(z.string()) }));
-  return ok(reorderLevels(event.id, ids));
+  return ok(await reorderLevels(event.id, ids));
 });

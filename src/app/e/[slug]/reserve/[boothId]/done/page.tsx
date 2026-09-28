@@ -11,12 +11,12 @@ import { Badge, statusTone } from "@/components/ui";
 export default async function DonePage({ params, searchParams }: { params: Promise<{ slug: string; boothId: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
   const { slug, boothId } = await params;
   const { order: orderId } = await searchParams;
-  const event = findEventBySlugOrId(db(), slug);
+  const event = await findEventBySlugOrId(db(), slug);
   if (!event || !orderId) notFound();
-  const order = getOrder(event.id, orderId);
-  const booth = getBooth(event.id, boothId);
+  const order = await getOrder(event.id, orderId);
+  const booth = await getBooth(event.id, boothId);
   if (!order || !booth) notFound();
-  const exhibitor = order.exhibitorId ? getExhibitor(event.id, order.exhibitorId) : null;
+  const exhibitor = order.exhibitorId ? await getExhibitor(event.id, order.exhibitorId) : null;
   const paid = order.status === "paid";
   return (
     <main className="mx-auto max-w-lg px-4 py-16" style={{ ["--primary" as string]: event.settings.branding.primaryColor }}>

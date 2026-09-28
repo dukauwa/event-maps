@@ -10,10 +10,10 @@ export const GET = withApi(async (req: Request, ctx: Ctx) => {
 export const PATCH = withApi(async (req: Request, ctx: Ctx) => {
   const { event, principal } = await requireEvent(req, (await ctx.params).event, "write");
   const patch = await parseBody(req, eventInput.partial());
-  return ok(updateEvent(principal.orgId, event.id, patch));
+  return ok(await updateEvent(principal.orgId, event.id, patch));
 });
 export const DELETE = withApi(async (req: Request, ctx: Ctx) => {
   const { event, principal } = await requireEvent(req, (await ctx.params).event, "admin");
-  deleteEvent(principal.orgId, event.id);
+  await deleteEvent(principal.orgId, event.id);
   return ok({ deleted: true });
 });

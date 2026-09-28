@@ -22,57 +22,57 @@ export const elementInput = z.object({
 });
 export type ElementInput = z.infer<typeof elementInput>;
 
-export function listElements(eventId: string, levelId?: string) {
-  const rows = db().select().from(schema.elements).where(eq(schema.elements.eventId, eventId)).orderBy(asc(schema.elements.sortIndex)).all();
+export async function listElements(eventId: string, levelId?: string) {
+  const rows = await db().select().from(schema.elements).where(eq(schema.elements.eventId, eventId)).orderBy(asc(schema.elements.sortIndex)).all();
   return levelId ? rows.filter((e) => e.levelId === levelId) : rows;
 }
 
-export function getElement(eventId: string, id: string) {
-  return db().select().from(schema.elements).where(and(eq(schema.elements.eventId, eventId), eq(schema.elements.id, id))).get() ?? null;
+export async function getElement(eventId: string, id: string) {
+  return (await db().select().from(schema.elements).where(and(eq(schema.elements.eventId, eventId), eq(schema.elements.id, id))).get()) ?? null;
 }
 
-function assertLevel(eventId: string, levelId: string) {
-  if (!db().select().from(schema.levels).where(and(eq(schema.levels.id, levelId), eq(schema.levels.eventId, eventId))).get()) throw badRequest("Unknown levelId");
+async function assertLevel(eventId: string, levelId: string) {
+  if (!(await db().select().from(schema.levels).where(and(eq(schema.levels.id, levelId), eq(schema.levels.eventId, eventId))).get())) throw badRequest("Unknown levelId");
 }
 
-export function createElement(eventId: string, input: ElementInput) {
-  assertLevel(eventId, input.levelId);
-  const id = input.id && input.id.startsWith("el_") && !getElement(eventId, input.id) ? input.id : newId("el");
-  db().insert(schema.elements).values({ id, eventId, levelId: input.levelId, kind: input.kind, geometry: input.geometry, props: (input.props ?? {}) as Record<string, unknown>, sortIndex: input.sortIndex ?? 0 }).run();
-  return getElement(eventId, id)!;
+export async function createElement(eventId: string, input: ElementInput) {
+  await assertLevel(eventId, input.levelId);
+  const id = input.id && input.id.startsWith("el_") && !(await getElement(eventId, input.id)) ? input.id : newId("el");
+  await db().insert(schema.elements).values({ id, eventId, levelId: input.levelId, kind: input.kind, geometry: input.geometry, props: (input.props ?? {}) as Record<string, unknown>, sortIndex: input.sortIndex ?? 0 }).run();
+  return (await getElement(eventId, id))!;
 }
 
-export function updateElement(eventId: string, id: string, patch: Partial<ElementInput>) {
-  if (!getElement(eventId, id)) throw notFound("element");
-  if (patch.levelId) assertLevel(eventId, patch.levelId);
+export async function updateElement(eventId: string, id: string, patch: Partial<ElementInput>) {
+  if (!(await getElement(eventId, id))) throw notFound("element");
+  if (patch.levelId) await assertLevel(eventId, patch.levelId);
   const { id: _i, ...rest } = patch;
   void _i;
-  db().update(schema.elements).set({ ...rest, ...(rest.props ? { props: rest.props as Record<string, unknown> } : {}), updatedAt: new Date().toISOString() }).where(eq(schema.elements.id, id)).run();
-  return getElement(eventId, id)!;
+  await db().update(schema.elements).set({ ...rest, ...(rest.props ? { props: rest.props as Record<string, unknown> } : {}), updatedAt: new Date().toISOString() }).where(eq(schema.elements.id, id)).run();
+  return (await getElement(eventId, id))!;
 }
 
-export function deleteElement(eventId: string, id: string) {
-  if (!getElement(eventId, id)) throw notFound("element");
-  db().delete(schema.elements).where(eq(schema.elements.id, id)).run();
+export async function deleteElement(eventId: string, id: string) {
+  if (!(await getElement(eventId, id))) throw notFound("element");
+  await db().delete(schema.elements).where(eq(schema.elements.id, id)).run();
 }
 
 /** Replace all elements of a level in one transaction (editor save). Keeps ids that are supplied so sessions linked to rooms survive. */
-export function replaceLevelElements(eventId: string, levelId: string, items: ElementInput[]) {
-  assertLevel(eventId, levelId);
+export async function replaceLevelElements(eventId: string, levelId: string, items: ElementInput[]) {
+  await assertLevel(eventId, levelId);
   const d = db();
-  d.transaction((tx) => {
-    const keep = new Set(items.map((i) => i.id).filter((x): x is string => !!x));
-    const existing = tx.select({ id: schema.elements.id }).from(schema.elements).where(and(eq(schema.elements.eventId, eventId), eq(schema.elements.levelId, levelId))).all().map((r) => r.id);
-    const toDelete = existing.filter((id) => !keep.has(id));
-    if (toDelete.length) tx.delete(schema.elements).where(inArray(schema.elements.id, toDelete)).run();
-    items.forEach((item, i) => {
-      const props = (item.props ?? {}) as Record<string, unknown>;
-      if (item.id && existing.includes(item.id)) {
-        tx.update(schema.elements).set({ kind: item.kind, geometry: item.geometry, props, sortIndex: item.sortIndex ?? i, updatedAt: new Date().toISOString() }).where(eq(schema.elements.id, item.id)).run();
-      } else {
-        tx.insert(schema.elements).values({ id: item.id && item.id.startsWith("el_") ? item.id : newId("el"), eventId, levelId, kind: item.kind, geometry: item.geometry, props, sortIndex: item.sortIndex ?? i }).run();
-      }
-    });
-  });
-  return listElements(eventId, levelId);
+  await d.transaction(async (tx) => {
+        const keep = new Set(items.map((i) => i.id).filter((x): x is string => !!x));
+        const existing = (await tx.select({ id: schema.elements.id }).from(schema.elements).where(and(eq(schema.elements.eventId, eventId), eq(schema.elements.levelId, levelId))).all()).map((r) => r.id);
+        const toDelete = existing.filter((id) => !keep.has(id));
+        if (toDelete.length) await tx.delete(schema.elements).where(inArray(schema.elements.id, toDelete)).run();
+        for (const [i, item] of items.entries()) {
+          const props = (item.props ?? {}) as Record<string, unknown>;
+          if (item.id && existing.includes(item.id)) {
+            await tx.update(schema.elements).set({ kind: item.kind, geometry: item.geometry, props, sortIndex: item.sortIndex ?? i, updatedAt: new Date().toISOString() }).where(eq(schema.elements.id, item.id)).run();
+          } else {
+            await tx.insert(schema.elements).values({ id: item.id && item.id.startsWith("el_") ? item.id : newId("el"), eventId, levelId, kind: item.kind, geometry: item.geometry, props, sortIndex: item.sortIndex ?? i }).run();
+          }
+        }
+      });
+  return await listElements(eventId, levelId);
 }

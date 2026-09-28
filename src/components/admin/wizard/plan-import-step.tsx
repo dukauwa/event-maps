@@ -9,11 +9,12 @@ import { Notice, Switch } from "@/components/admin/primitives";
 import { detectCells, labelCells, minAreaPxFor, type DetectedCell, type DraftBooth, type LabelOptions } from "@/lib/import/raster-booths";
 import { importSvgBooths } from "@/lib/editor/import-svg";
 import type { LoadedPlan } from "@/lib/import/plan-file";
+import { boothsFromShapes } from "@/lib/import/pdf-vector";
 
 export interface PlanDraft {
   file: File;
   loaded: LoadedPlan;
-  /** PNG of the rendered page, uploaded as the level background. */
+  /** The rendered page (PNG, or WebP/JPEG when large), uploaded as the level background. */
   blob: Blob;
   previewUrl: string;
 }
@@ -25,13 +26,18 @@ export interface PlanImportState {
   scheme: LabelOptions["scheme"];
   prefix: string;
   start: number;
-  /** Prefer vector shapes from an SVG over raster detection when the SVG carries labelled shapes. */
+  /** Prefer the drawing's own outlines (vector PDF / SVG) over detecting cells in the rendered image. */
   useVectors: boolean;
+  /** Create exhibitors from the company names printed inside booths, assigned to those booths. */
+  createExhibitors: boolean;
 }
 
-export const DEFAULT_PLAN_STATE: PlanImportState = { draft: null, autoDraft: true, minAreaM2: 4, scheme: "rows", prefix: "", start: 1, useVectors: true };
+export const DEFAULT_PLAN_STATE: PlanImportState = { draft: null, autoDraft: true, minAreaM2: 4, scheme: "rows", prefix: "", start: 1, useVectors: true, createExhibitors: true };
 
 export interface PlanBoothsResult { booths: DraftBooth[]; source: "vector" | "raster" | "none"; cells: number }
+
+/** A vector reading counts when it found at least this many numbered outlines; fewer means a scan or a sketch. */
+const MIN_VECTOR_BOOTHS = 3;
 
 /** Flood-fill results per (page, min cell size); detection is the slow part, labelling is instant. */
 const cellCache = new Map<string, DetectedCell[]>();
@@ -40,6 +46,10 @@ const cellCache = new Map<string, DetectedCell[]>();
 export function computePlanBooths(state: PlanImportState, metersPerPixel: number): PlanBoothsResult {
   const d = state.draft;
   if (!d || !state.autoDraft) return { booths: [], source: "none", cells: 0 };
+  if (d.loaded.kind === "pdf" && d.loaded.shapes?.length && state.useVectors) {
+    const v = boothsFromShapes(d.loaded.shapes, d.loaded.texts, { pageArea: d.loaded.width * d.loaded.height });
+    if (v.labelled >= MIN_VECTOR_BOOTHS) return { booths: v.booths, source: "vector", cells: v.shapes };
+  }
   if (d.loaded.kind === "svg" && d.loaded.svg && state.useVectors) {
     const vec = importSvgBooths(d.loaded.svg, { minArea: 0 });
     const vb = vec.viewBox;
@@ -83,6 +93,8 @@ export function PlanImportStep({ state, onChange, widthM, onWidthM, metersPerPix
   const [over, setOver] = React.useState(false);
   const d = state.draft;
   const textLabels = result.booths.filter((b) => b.labelSource === "text").length;
+  const named = result.booths.filter((b) => b.name).length;
+  const exhibitorNames = new Set(result.booths.filter((b) => b.name && b.nameKind === "exhibitor").map((b) => b.name)).size;
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
@@ -113,7 +125,9 @@ export function PlanImportStep({ state, onChange, widthM, onWidthM, metersPerPix
               <svg viewBox={`0 0 ${d.loaded.width} ${d.loaded.height}`} className="absolute inset-0 h-full w-full" preserveAspectRatio="xMidYMid meet" aria-hidden>
                 {result.booths.map((b, i) => (
                   <g key={i}>
-                    <rect x={b.rect.x} y={b.rect.y} width={b.rect.w} height={b.rect.h} fill={b.labelSource === "text" ? "rgba(29,78,216,0.28)" : "rgba(249,115,22,0.28)"} stroke={b.labelSource === "text" ? "#1d4ed8" : "#ea580c"} strokeWidth={Math.max(1, d.loaded.width / 900)} />
+                    {b.polygon
+                      ? <polygon points={b.polygon.map((pt) => pt.join(",")).join(" ")} fill={b.name ? "rgba(21,128,61,0.28)" : "rgba(29,78,216,0.28)"} stroke={b.name ? "#15803d" : "#1d4ed8"} strokeWidth={Math.max(1, d.loaded.width / 900)} />
+                      : <rect x={b.rect.x} y={b.rect.y} width={b.rect.w} height={b.rect.h} fill={b.labelSource === "text" ? "rgba(29,78,216,0.28)" : "rgba(249,115,22,0.28)"} stroke={b.labelSource === "text" ? "#1d4ed8" : "#ea580c"} strokeWidth={Math.max(1, d.loaded.width / 900)} />}
                     {b.rect.w > d.loaded.width / 60 && <text x={b.rect.x + b.rect.w / 2} y={b.rect.y + b.rect.h / 2} textAnchor="middle" dominantBaseline="middle" fontSize={Math.min(b.rect.h * 0.45, b.rect.w / Math.max(3, b.label.length) * 1.4)} fontFamily="system-ui" fontWeight={600} fill="#111827">{b.label}</text>}
                   </g>
                 ))}
@@ -147,27 +161,42 @@ export function PlanImportStep({ state, onChange, widthM, onWidthM, metersPerPix
         {state.autoDraft && (
           <>
             {d?.loaded.kind === "svg" && d.loaded.svg && <Switch checked={state.useVectors} onChange={(v) => onChange({ useVectors: v })} label="Use the SVG's shapes" description="Labelled rectangles and paths become booths directly." />}
-            <Field label="Smallest booth" hint="Cells below this area are ignored (labels, furniture, noise).">
-              <div className="flex items-center gap-2"><Input type="number" min={0.5} max={500} step={0.5} value={state.minAreaM2} onChange={(e) => onChange({ minAreaM2: Math.max(0.5, Number(e.target.value) || 0.5) })} /><span className="text-sm text-gray-500">m²</span></div>
-            </Field>
-            <Field label="Numbering for unlabelled stands">
-              <Select value={state.scheme} onChange={(e) => onChange({ scheme: e.target.value as LabelOptions["scheme"] })}>
-                <option value="rows">Row letters — A1, A2 … B1, B2</option>
-                <option value="sequential">Sequential — 1, 2, 3 …</option>
-              </Select>
-            </Field>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Prefix"><Input value={state.prefix} onChange={(e) => onChange({ prefix: e.target.value.toUpperCase().slice(0, 4) })} placeholder="e.g. H1-" /></Field>
-              <Field label="Start at"><Input type="number" min={0} step={1} value={state.start} onChange={(e) => onChange({ start: Math.max(0, Math.floor(Number(e.target.value) || 0)) })} /></Field>
-            </div>
+            {d?.loaded.kind === "pdf" && !!d.loaded.shapes?.length && <Switch checked={state.useVectors} onChange={(v) => onChange({ useVectors: v })} label="Read booths from the PDF's drawing" description="Exact outlines and numbers from a CAD or ExpoFP export. Turn off for scanned plans." />}
+            {result.source === "vector" && named > 0 && <Switch checked={state.createExhibitors} onChange={(v) => onChange({ createExhibitors: v })} label={`Create ${exhibitorNames} exhibitor${exhibitorNames === 1 ? "" : "s"} from the plan`} description="Company names printed inside booths become exhibitors assigned to them, and those booths are marked sold. Named spaces (“N141: Main Stage”) are kept off sale." />}
+            {result.source !== "vector" && (
+              <>
+                <Field label="Smallest booth" hint="Cells below this area are ignored (labels, furniture, noise).">
+                  <div className="flex items-center gap-2"><Input type="number" min={0.5} max={500} step={0.5} value={state.minAreaM2} onChange={(e) => onChange({ minAreaM2: Math.max(0.5, Number(e.target.value) || 0.5) })} /><span className="text-sm text-gray-500">m²</span></div>
+                </Field>
+                <Field label="Numbering for unlabelled stands">
+                  <Select value={state.scheme} onChange={(e) => onChange({ scheme: e.target.value as LabelOptions["scheme"] })}>
+                    <option value="rows">Row letters — A1, A2 … B1, B2</option>
+                    <option value="sequential">Sequential — 1, 2, 3 …</option>
+                  </Select>
+                </Field>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Prefix"><Input value={state.prefix} onChange={(e) => onChange({ prefix: e.target.value.toUpperCase().slice(0, 4) })} placeholder="e.g. H1-" /></Field>
+                  <Field label="Start at"><Input type="number" min={0} step={1} value={state.start} onChange={(e) => onChange({ start: Math.max(0, Math.floor(Number(e.target.value) || 0)) })} /></Field>
+                </div>
+              </>
+            )}
           </>
         )}
         <div className="rounded-lg border border-border bg-gray-50 p-3 text-sm">
           {!d ? <p className="text-gray-500">No plan uploaded yet.</p> : !state.autoDraft ? <p className="text-gray-600">The plan will be placed as a background image; draw booths in the designer.</p> : (
             <>
               <p className="font-semibold">{result.booths.length} booths drafted</p>
-              <p className="mt-1 text-xs text-gray-600">{result.source === "vector" ? "From the SVG's labelled shapes." : `${result.cells} closed cells found · ${textLabels} named from the drawing's text · ${result.booths.length - textLabels} numbered automatically.`}</p>
-              <p className="mt-2 flex items-center gap-3 text-xs text-gray-500"><span className="inline-flex items-center gap-1"><span className="inline-block size-3 rounded-sm border border-blue-700 bg-blue-600/30" /> label from the plan</span><span className="inline-flex items-center gap-1"><span className="inline-block size-3 rounded-sm border border-orange-600 bg-orange-500/30" /> generated label</span></p>
+              {result.source === "vector" ? (
+                <>
+                  <p className="mt-1 text-xs text-gray-600">{d.loaded.kind === "pdf" ? `Read from the PDF's drawing: ${result.cells} outlines, ${result.booths.length} with a stand number · ${named} with a name on the plan.` : "From the SVG's labelled shapes."}</p>
+                  {d.loaded.kind === "pdf" && <p className="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-500"><span className="inline-flex items-center gap-1"><span className="inline-block size-3 rounded-sm border border-blue-700 bg-blue-600/30" /> open stand</span><span className="inline-flex items-center gap-1"><span className="inline-block size-3 rounded-sm border border-green-700 bg-green-700/30" /> named on the plan</span></p>}
+                </>
+              ) : (
+                <>
+                  <p className="mt-1 text-xs text-gray-600">{`${result.cells} closed cells found · ${textLabels} named from the drawing's text · ${result.booths.length - textLabels} numbered automatically.`}</p>
+                  <p className="mt-2 flex items-center gap-3 text-xs text-gray-500"><span className="inline-flex items-center gap-1"><span className="inline-block size-3 rounded-sm border border-blue-700 bg-blue-600/30" /> label from the plan</span><span className="inline-flex items-center gap-1"><span className="inline-block size-3 rounded-sm border border-orange-600 bg-orange-500/30" /> generated label</span></p>
+                </>
+              )}
               {result.booths.length === 0 && <p className="mt-2 text-xs text-amber-700">Nothing detected. Try a smaller “smallest booth”, a higher-contrast export, or draw the booths in the designer.</p>}
             </>
           )}

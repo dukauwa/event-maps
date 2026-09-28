@@ -78,11 +78,11 @@ export async function destroyUserSession(): Promise<void> {
   jar.delete(SESSION_COOKIE);
 }
 
-export function userFromSessionToken(token: string | undefined): AuthUser | null {
+export async function userFromSessionToken(token: string | undefined): Promise<AuthUser | null> {
   if (!token) return null;
   const userId = readSessionToken(token);
   if (!userId) return null;
-  const user = db().select().from(schema.users).where(eq(schema.users.id, userId)).get();
+  const user = await db().select().from(schema.users).where(eq(schema.users.id, userId)).get();
   if (!user) return null;
   const { id, orgId, email, name, role } = user;
   return { id, orgId, email, name, role };
@@ -96,7 +96,7 @@ async function safeCookies() {
 /** Current organiser user from the session cookie (server components / route handlers). */
 export async function currentUser(): Promise<AuthUser | null> {
   const jar = await safeCookies();
-  return userFromSessionToken(jar?.get(SESSION_COOKIE)?.value);
+  return await userFromSessionToken(jar?.get(SESSION_COOKIE)?.value);
 }
 
 export async function requireUser(): Promise<AuthUser> {
@@ -124,11 +124,11 @@ export function generateApiKey(): { raw: string; prefix: string; hash: string } 
   return { raw, prefix: raw.slice(0, 16), hash: sha256(raw) };
 }
 
-export function principalFromApiKey(raw: string | null | undefined): ApiPrincipal | null {
+export async function principalFromApiKey(raw: string | null | undefined): Promise<ApiPrincipal | null> {
   if (!raw) return null;
-  const key = db().select().from(schema.apiKeys).where(eq(schema.apiKeys.keyHash, sha256(raw))).get();
+  const key = await db().select().from(schema.apiKeys).where(eq(schema.apiKeys.keyHash, sha256(raw))).get();
   if (!key || key.revokedAt) return null;
-  db().update(schema.apiKeys).set({ lastUsedAt: new Date().toISOString() }).where(eq(schema.apiKeys.id, key.id)).run();
+  await db().update(schema.apiKeys).set({ lastUsedAt: new Date().toISOString() }).where(eq(schema.apiKeys.id, key.id)).run();
   return { kind: "api_key", orgId: key.orgId, scopes: key.scopes, apiKeyId: key.id };
 }
 
@@ -141,9 +141,9 @@ export async function apiPrincipal(req: Request): Promise<ApiPrincipal | null> {
   const bearer = auth?.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : null;
   const url = new URL(req.url);
   const raw = bearer || req.headers.get("x-api-key") || url.searchParams.get("api_key");
-  if (raw) return principalFromApiKey(raw);
+  if (raw) return await principalFromApiKey(raw);
   const jar = await safeCookies();
-  const user = userFromSessionToken(jar?.get(SESSION_COOKIE)?.value);
+  const user = await userFromSessionToken(jar?.get(SESSION_COOKIE)?.value);
   if (user) return { kind: "user", orgId: user.orgId, scopes: ["read", "write", "admin"], userId: user.id };
   return null;
 }
@@ -153,7 +153,7 @@ export async function currentExhibitor() {
   const jar = await safeCookies();
   const token = jar?.get(EXHIBITOR_COOKIE)?.value;
   if (!token) return null;
-  return db().select().from(schema.exhibitors).where(eq(schema.exhibitors.portalToken, token)).get() ?? null;
+  return (await db().select().from(schema.exhibitors).where(eq(schema.exhibitors.portalToken, token)).get()) ?? null;
 }
 
 export async function requestOrigin(): Promise<string> {

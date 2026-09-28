@@ -12,9 +12,9 @@ export const metadata: Metadata = { title: "Sales" };
 export default async function SalesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { event } = await loadEvent(id);
-  const boothLabel = new Map(listBooths(event.id).map((b) => [b.id, b.label]));
-  const exName = new Map(listExhibitors(event.id).map((e) => [e.id, e.name]));
-  const orders = listOrders(event.id).map((o) => ({
+  const boothLabel = new Map((await listBooths(event.id)).map((b) => [b.id, b.label]));
+  const exName = new Map((await listExhibitors(event.id)).map((e) => [e.id, e.name]));
+  const orders = (await listOrders(event.id)).map((o) => ({
     id: o.id, boothId: o.boothId, boothLabel: boothLabel.get(o.boothId) ?? o.boothId, exhibitorId: o.exhibitorId, exhibitorName: o.exhibitorId ? exName.get(o.exhibitorId) ?? null : null, status: o.status, amountCents: o.amountCents, taxCents: o.taxCents,
     currency: o.currency, provider: o.provider, company: o.company, contactName: o.contactName, contactEmail: o.contactEmail, expiresAt: o.expiresAt, paidAt: o.paidAt, createdAt: o.createdAt, notes: o.notes,
   }));
@@ -22,10 +22,10 @@ export default async function SalesPage({ params }: { params: Promise<{ id: stri
   return (
     <SalesManager
       event={{ id: event.id, name: event.name, slug: event.slug, timezone: event.timezone, sales: event.settings.sales, terms: { booth: t.booth, booths: t.booths, exhibitor: t.exhibitor } }}
-      rules={listPricingRules(event.id)}
-      extras={listExtras(event.id)}
+      rules={await listPricingRules(event.id)}
+      extras={await listExtras(event.id)}
       orders={orders}
-      summary={salesSummary(event)}
+      summary={await salesSummary(event)}
       stripeConfigured={!!process.env.STRIPE_SECRET_KEY}
     />
   );

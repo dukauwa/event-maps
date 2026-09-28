@@ -81,7 +81,7 @@ export async function requirePrincipal(req: Request, scope: "read" | "write" | "
 /** Resolve an event the caller may access. */
 export async function requireEvent(req: Request, slugOrId: string, scope: "read" | "write" | "admin" = "read"): Promise<{ principal: ApiPrincipal; event: Event }> {
   const principal = await requirePrincipal(req, scope);
-  const event = findEventBySlugOrId(db(), slugOrId);
+  const event = await findEventBySlugOrId(db(), slugOrId);
   if (!event || event.orgId !== principal.orgId) throw notFound("event");
   return { principal, event };
 }
