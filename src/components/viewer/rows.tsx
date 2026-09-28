@@ -18,7 +18,7 @@ export function Logo({ ex, size }: { ex: BundleExhibitor; size?: number }) {
     // eslint-disable-next-line @next/next/no-img-element -- exhibitor logos are arbitrary URLs / data URIs
     return <img src={ex.logoUrl} alt="" className="tv-logo" style={style} loading="lazy" />;
   }
-  return <div className="tv-logo flex items-center justify-center font-bold tv-muted" style={style} aria-hidden="true">{ex.name.slice(0, 2).toUpperCase()}</div>;
+  return <div className="tv-logo flex items-center justify-center font-semibold tv-muted" style={style} aria-hidden="true">{ex.name.slice(0, 2).toUpperCase()}</div>;
 }
 
 export function ExhibitorRow({ ex, onSelect, current }: { ex: BundleExhibitor; onSelect: (ex: BundleExhibitor) => void; current?: boolean }) {
@@ -36,7 +36,7 @@ export function ExhibitorRow({ ex, onSelect, current }: { ex: BundleExhibitor; o
       <Logo ex={ex} />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="font-semibold truncate">{ex.name}</span>
+          <span className="font-medium truncate">{ex.name}</span>
           {ex.featured && !ex.sponsorLevel && <Icon name="star" size={14} filled className="text-[var(--tv-accent)] flex-none" />}
           <SponsorBadge level={ex.sponsorLevel} />
           {visited && <Icon name="check" size={14} className="tv-muted flex-none" />}
@@ -71,7 +71,7 @@ export function SearchResultRow({ r }: { r: SearchResult }) {
     <button type="button" className="tv-row h-full" role="listitem" onClick={() => controller.openSearchResult(r)}>
       <span className="tv-step-icon" style={{ width: 40, height: 40 }}><Icon name={icon} /></span>
       <span className="flex-1 min-w-0">
-        <span className="font-semibold truncate block">{r.type === "booth" ? `${terms.booth} ${r.title}` : r.title}</span>
+        <span className="font-medium truncate block">{r.type === "booth" ? `${terms.booth} ${r.title}` : r.title}</span>
         <span className="tv-muted text-xs truncate block">{[kind, r.subtitle, level && b.levels.length > 1 ? level : null].filter(Boolean).join(" · ")}</span>
       </span>
       <Icon name="chevron" className="tv-muted" />
@@ -96,7 +96,7 @@ export function SessionRow({ se, current }: { se: BundleSession; current?: boole
         <div className="tv-muted text-xs">{formatTime(se.endsAt, locale, tz)}</div>
       </div>
       <div className="flex-1 min-w-0">
-        <div className="font-semibold truncate">{se.title}</div>
+        <div className="font-medium truncate">{se.title}</div>
         <div className="flex items-center gap-1 mt-1 flex-wrap overflow-hidden" style={{ maxHeight: 22 }}>
           {live && <span className="tv-badge" style={{ background: "#dc2626" }}>{t("liveSession")}</span>}
           {where && <span className="tv-chip tv-chip-primary">{where}</span>}

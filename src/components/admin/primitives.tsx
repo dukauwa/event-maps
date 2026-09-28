@@ -29,20 +29,20 @@ export async function run<T>(fn: () => Promise<T>, opts: { success?: string; onD
 
 export function PageHeader({ title, subtitle, crumbs, actions, className }: { title: React.ReactNode; subtitle?: React.ReactNode; crumbs?: { href?: string; label: string }[]; actions?: React.ReactNode; className?: string }) {
   return (
-    <div className={cn("mb-6 flex flex-wrap items-end justify-between gap-3", className)}>
+    <div className={cn("mb-8 flex flex-wrap items-end justify-between gap-4", className)}>
       <div className="min-w-0">
         {crumbs && crumbs.length > 0 && (
-          <nav className="mb-1 flex flex-wrap items-center gap-1 text-xs text-gray-500" aria-label="Breadcrumb">
+          <nav className="mb-2 flex flex-wrap items-center gap-1.5 text-[13px] text-gray-500" aria-label="Breadcrumb">
             {crumbs.map((c, i) => (
               <React.Fragment key={i}>
-                {i > 0 && <span aria-hidden>/</span>}
-                {c.href ? <Link href={c.href} className="hover:text-gray-900">{c.label}</Link> : <span>{c.label}</span>}
+                {i > 0 && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400" aria-hidden><path d="m9 6 6 6-6 6" /></svg>}
+                {c.href ? <Link href={c.href} className="rounded hover:text-gray-900">{c.label}</Link> : <span className="text-gray-700">{c.label}</span>}
               </React.Fragment>
             ))}
           </nav>
         )}
-        <h1 className="truncate text-2xl font-semibold tracking-tight">{title}</h1>
-        {subtitle && <p className="mt-1 text-sm text-gray-500">{subtitle}</p>}
+        <h1 className="truncate text-[26px] font-semibold leading-tight tracking-[-0.02em] text-gray-900">{title}</h1>
+        {subtitle && <p className="mt-1.5 text-sm text-gray-500">{subtitle}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>
@@ -51,26 +51,27 @@ export function PageHeader({ title, subtitle, crumbs, actions, className }: { ti
 
 export function Section({ title, description, actions, children, className, id }: { title: React.ReactNode; description?: React.ReactNode; actions?: React.ReactNode; children: React.ReactNode; className?: string; id?: string }) {
   return (
-    <section id={id} className={cn("rounded-xl border border-border bg-surface shadow-sm", className)}>
-      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-5 py-4">
+    <section id={id} className={cn("rounded-xl border border-border bg-surface shadow-[var(--shadow-card)]", className)}>
+      <header className="flex flex-wrap items-start justify-between gap-3 px-5 pb-1 pt-5">
         <div>
-          <h2 className="text-base font-semibold">{title}</h2>
-          {description && <p className="mt-0.5 text-sm text-gray-500">{description}</p>}
+          <h2 className="text-[15px] font-semibold tracking-tight text-gray-900">{title}</h2>
+          {description && <p className="mt-0.5 text-[13px] text-gray-500">{description}</p>}
         </div>
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </header>
-      <div className="p-5">{children}</div>
+      <div className="p-5 pt-4">{children}</div>
     </section>
   );
 }
 
 export function Kpi({ label, value, hint, tone }: { label: string; value: React.ReactNode; hint?: React.ReactNode; tone?: "default" | "green" | "orange" | "blue" }) {
-  const tones = { default: "text-gray-900", green: "text-green-700", orange: "text-orange-600", blue: "text-blue-700" };
+  // The number stays in ink (text never wears a data colour); tone shows as a small marker beside the label.
+  const dot = { default: "bg-gray-300", green: "bg-emerald-500", orange: "bg-orange-500", blue: "bg-brand" };
   return (
-    <div className="rounded-xl border border-border bg-surface p-4 shadow-sm">
-      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{label}</p>
-      <p className={cn("mt-1 text-2xl font-semibold tabular-nums", tones[tone ?? "default"])}>{value}</p>
-      {hint && <p className="mt-1 text-xs text-gray-500">{hint}</p>}
+    <div className="rounded-xl border border-border bg-surface p-5 shadow-[var(--shadow-card)]">
+      <p className="flex items-center gap-2 text-[13px] font-medium text-gray-500"><span className={cn("size-1.5 rounded-full", dot[tone ?? "default"])} aria-hidden />{label}</p>
+      <p className="mt-3 text-[28px] font-semibold leading-none tracking-[-0.02em] text-gray-900 tabular-nums">{value}</p>
+      {hint && <p className="mt-2.5 text-xs leading-relaxed text-gray-500">{hint}</p>}
     </div>
   );
 }
@@ -78,8 +79,8 @@ export function Kpi({ label, value, hint, tone }: { label: string; value: React.
 export function Switch({ checked, onChange, label, description, disabled }: { checked: boolean; onChange: (v: boolean) => void; label?: React.ReactNode; description?: React.ReactNode; disabled?: boolean }) {
   return (
     <label className={cn("flex cursor-pointer items-start gap-3", disabled && "cursor-not-allowed opacity-60")}>
-      <button type="button" role="switch" aria-checked={checked} disabled={disabled} onClick={() => onChange(!checked)} className={cn("relative mt-0.5 inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50", checked ? "bg-primary" : "bg-gray-300")}>
-        <span className={cn("inline-block size-4 rounded-full bg-white shadow transition-transform", checked ? "translate-x-4" : "translate-x-0.5")} />
+      <button type="button" role="switch" aria-checked={checked} disabled={disabled} onClick={() => onChange(!checked)} className={cn("relative mt-0.5 inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)]", checked ? "bg-brand" : "bg-gray-300")}>
+        <span className={cn("inline-block size-4 rounded-full bg-white shadow-[var(--shadow-card)] transition-transform", checked ? "translate-x-[18px]" : "translate-x-0.5")} />
       </button>
       {(label || description) && (
         <span className="text-sm">
@@ -96,7 +97,7 @@ export function Checkbox({ checked, onChange, label, indeterminate, className, a
   React.useEffect(() => { if (ref.current) ref.current.indeterminate = !!indeterminate; }, [indeterminate]);
   return (
     <label className={cn("inline-flex items-center gap-2 text-sm", className)}>
-      <input ref={ref} type="checkbox" className="size-4 rounded border-gray-300 accent-primary" checked={checked} onChange={(e) => onChange(e.target.checked)} aria-label={ariaLabel} />
+      <input ref={ref} type="checkbox" className="size-4 rounded border-gray-300 accent-[var(--brand)]" checked={checked} onChange={(e) => onChange(e.target.checked)} aria-label={ariaLabel} />
       {label}
     </label>
   );
@@ -134,14 +135,14 @@ export function Drawer({ open, onClose, title, children, footer, wide }: { open:
   }, [open, onClose]);
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/40" onMouseDown={(e) => e.target === e.currentTarget && onClose()} role="dialog" aria-modal="true">
-      <div className={cn("flex h-full w-full flex-col bg-surface shadow-2xl", wide ? "max-w-3xl" : "max-w-xl")}>
-        <header className="flex items-center justify-between border-b border-border px-5 py-4">
-          <h2 className="text-base font-semibold">{title}</h2>
-          <button type="button" className="rounded-md p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-900" onClick={onClose} aria-label="Close">✕</button>
+    <div className="fixed inset-0 z-50 flex justify-end bg-gray-900/30 backdrop-blur-[2px]" onMouseDown={(e) => e.target === e.currentTarget && onClose()} role="dialog" aria-modal="true">
+      <div className={cn("m-2 flex h-[calc(100%-1rem)] w-full flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-pop)]", wide ? "max-w-3xl" : "max-w-xl")}>
+        <header className="flex items-center justify-between border-b border-border px-6 py-4">
+          <h2 className="text-base font-semibold tracking-tight">{title}</h2>
+          <button type="button" className="grid size-8 place-items-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-900" onClick={onClose} aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><path d="M18 6 6 18M6 6l12 12" /></svg></button>
         </header>
-        <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
-        {footer && <footer className="flex items-center justify-end gap-2 border-t border-border px-5 py-3">{footer}</footer>}
+        <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
+        {footer && <footer className="flex items-center justify-end gap-2 border-t border-border bg-subtle px-6 py-3">{footer}</footer>}
       </div>
     </div>
   );
@@ -150,15 +151,15 @@ export function Drawer({ open, onClose, title, children, footer, wide }: { open:
 export function SearchInput({ value, onChange, placeholder = "Search…", className }: { value: string; onChange: (v: string) => void; placeholder?: string; className?: string }) {
   return (
     <div className={cn("relative", className)}>
-      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" aria-hidden>⌕</span>
-      <input type="search" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="h-9 w-full rounded-lg border border-border bg-surface pl-8 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40" />
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" aria-hidden><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+      <input type="search" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} aria-label={placeholder.replace(/…$/, "")} className="h-9 w-full rounded-lg border border-border bg-surface pl-9 pr-3 text-sm shadow-[var(--shadow-card)] placeholder:text-gray-500 hover:border-border-strong focus:border-brand focus:outline-none focus-visible:outline-none focus:ring-[3px] focus:ring-[var(--ring)]" />
     </div>
   );
 }
 
 export function Pill({ children, color }: { children: React.ReactNode; color?: string | null }) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-gray-50 px-2 py-0.5 text-xs text-gray-700">
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-2 py-0.5 text-xs text-gray-700">
       {color && <span className="size-2 rounded-full" style={{ background: color }} />}
       {children}
     </span>
@@ -169,36 +170,38 @@ export function Stack({ children, className }: { children: React.ReactNode; clas
   return <div className={cn("space-y-6", className)}>{children}</div>;
 }
 
-/** Simple responsive bar chart (no chart lib). */
-export function BarChart({ data, height = 160, color = "var(--primary)", valueLabel = "", className }: { data: { label: string; value: number; sub?: string }[]; height?: number; color?: string; valueLabel?: string; className?: string }) {
+/**
+ * Single-series column chart (no chart lib). Columns are capped at 24px with a 4px rounded top, grow from one
+ * baseline, and sit on hairline gridlines; the value appears on hover. One series, so the section title is the legend.
+ */
+export function BarChart({ data, height = 168, color = "var(--brand)", valueLabel = "", className }: { data: { label: string; value: number; sub?: string }[]; height?: number; color?: string; valueLabel?: string; className?: string }) {
   const [hover, setHover] = React.useState<number | null>(null);
   if (!data.length) return <p className="py-8 text-center text-sm text-gray-500">No data for this range.</p>;
-  const max = Math.max(1, ...data.map((d) => d.value));
-  const w = 100, gap = 0.6;
-  const bw = Math.max(0.5, w / data.length - gap);
-  const ticks = [0, 0.5, 1].map((t) => Math.round(max * t));
+  const niceMax = (() => { const m = Math.max(1, ...data.map((d) => d.value)); const p = Math.pow(10, Math.floor(Math.log10(m))); return Math.ceil(m / p) * p; })();
+  const ticks = [niceMax, niceMax / 2, 0];
   return (
     <div className={cn("relative", className)}>
-      <div className="flex gap-2">
-        <div className="flex flex-col justify-between py-0.5 text-right text-[10px] tabular-nums text-gray-400" style={{ height }}>
-          {[...ticks].reverse().map((t, i) => <span key={i}>{t}</span>)}
+      <div className="flex gap-3">
+        <div className="flex flex-col justify-between text-right text-[11px] tabular-nums text-gray-500" style={{ height }} aria-hidden>
+          {ticks.map((t, i) => <span key={i} className="-translate-y-1/2 first:translate-y-0 last:translate-y-0">{Math.round(t).toLocaleString()}</span>)}
         </div>
-        <div className="relative flex-1">
-          <svg viewBox={`0 0 ${w} 100`} preserveAspectRatio="none" style={{ height, width: "100%" }} className="overflow-visible" role="img" aria-label="Bar chart">
-            {[0, 50, 100].map((y) => <line key={y} x1={0} x2={w} y1={y} y2={y} stroke="var(--border)" strokeWidth={0.3} vectorEffect="non-scaling-stroke" />)}
-            {data.map((d, i) => {
-              const h = (d.value / max) * 100;
-              return <rect key={i} x={i * (w / data.length) + gap / 2} y={100 - h} width={bw} height={h} fill={color} opacity={hover === null || hover === i ? 1 : 0.45} rx={0.3} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)} />;
-            })}
-          </svg>
+        <div className="relative flex-1" style={{ height }} role="img" aria-label={`${valueLabel || "Values"} by day`}>
+          {[0, 50, 100].map((y) => <div key={y} className="absolute inset-x-0 h-px bg-gray-100" style={{ top: `${y}%` }} aria-hidden />)}
+          <div className="absolute inset-0 flex items-end gap-[2px]">
+            {data.map((d, i) => (
+              <div key={i} className="flex h-full flex-1 cursor-default items-end justify-center" onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
+                <div className="w-full max-w-6 rounded-t-[4px] transition-opacity" style={{ height: `${(d.value / niceMax) * 100}%`, minHeight: d.value > 0 ? 2 : 0, background: color, opacity: hover === null || hover === i ? 1 : 0.4 }} />
+              </div>
+            ))}
+          </div>
           {hover !== null && (
-            <div className="pointer-events-none absolute -top-2 left-0 -translate-y-full rounded-md bg-gray-900 px-2 py-1 text-xs text-white shadow" style={{ left: `${((hover + 0.5) / data.length) * 100}%`, transform: "translate(-50%, -100%)" }}>
-              <span className="font-medium">{data[hover].value.toLocaleString()} {valueLabel}</span> · {data[hover].label}{data[hover].sub ? ` · ${data[hover].sub}` : ""}
+            <div className="pointer-events-none absolute top-0 z-10 whitespace-nowrap rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs text-gray-700 shadow-[var(--shadow-pop)]" style={{ left: `${((hover + 0.5) / data.length) * 100}%`, transform: "translate(-50%, calc(-100% - 6px))" }}>
+              <span className="font-semibold tabular-nums text-gray-900">{data[hover].value.toLocaleString()}</span> {valueLabel} · {data[hover].label}{data[hover].sub ? ` · ${data[hover].sub}` : ""}
             </div>
           )}
         </div>
       </div>
-      <div className="ml-7 mt-1 flex justify-between text-[10px] text-gray-400">
+      <div className="mt-2 flex justify-between pl-10 text-[11px] text-gray-500" aria-hidden>
         <span>{data[0].label}</span>
         {data.length > 2 && <span>{data[Math.floor(data.length / 2)].label}</span>}
         <span>{data[data.length - 1].label}</span>
@@ -213,13 +216,13 @@ export function StatusDot({ status }: { status: string }) {
 }
 
 export function Notice({ tone = "info", children, className }: { tone?: "info" | "warn" | "error" | "success"; children: React.ReactNode; className?: string }) {
-  const tones = { info: "border-blue-200 bg-blue-50 text-blue-900", warn: "border-yellow-200 bg-yellow-50 text-yellow-900", error: "border-red-200 bg-red-50 text-red-900", success: "border-green-200 bg-green-50 text-green-900" };
-  return <div className={cn("rounded-lg border px-4 py-3 text-sm", tones[tone], className)}>{children}</div>;
+  const tones = { info: "border-[#d6defd] bg-brand-soft text-[#1f2f7a]", warn: "border-amber-200 bg-amber-50 text-amber-900", error: "border-red-200 bg-red-50 text-red-900", success: "border-emerald-200 bg-emerald-50 text-emerald-900" };
+  return <div className={cn("rounded-xl border px-4 py-3 text-sm leading-relaxed", tones[tone], className)}>{children}</div>;
 }
 
 export function FormRow({ children, cols = 2, className }: { children: React.ReactNode; cols?: 1 | 2 | 3 | 4; className?: string }) {
   const map = { 1: "sm:grid-cols-1", 2: "sm:grid-cols-2", 3: "sm:grid-cols-3", 4: "sm:grid-cols-4" };
-  return <div className={cn("grid grid-cols-1 gap-3", map[cols], className)}>{children}</div>;
+  return <div className={cn("grid grid-cols-1 gap-4", map[cols], className)}>{children}</div>;
 }
 
 export function KeyValueEditor({ value, onChange, keyPlaceholder = "key", valuePlaceholder = "value" }: { value: Record<string, string>; onChange: (v: Record<string, string>) => void; keyPlaceholder?: string; valuePlaceholder?: string }) {
@@ -229,8 +232,8 @@ export function KeyValueEditor({ value, onChange, keyPlaceholder = "key", valueP
     <div className="space-y-2">
       {rows.map(([k, v], i) => (
         <div key={i} className="flex gap-2">
-          <input className="h-9 w-2/5 rounded-lg border border-border px-2 text-sm" placeholder={keyPlaceholder} value={k} onChange={(e) => commit(rows.map((r, j) => (j === i ? [e.target.value, r[1]] : r)))} />
-          <input className="h-9 flex-1 rounded-lg border border-border px-2 text-sm" placeholder={valuePlaceholder} value={v} onChange={(e) => commit(rows.map((r, j) => (j === i ? [r[0], e.target.value] : r)))} />
+          <input className="h-9 w-2/5 rounded-lg border border-border bg-surface px-3 text-sm shadow-[var(--shadow-card)] focus:border-brand focus:outline-none focus-visible:outline-none focus:ring-[3px] focus:ring-[var(--ring)]" placeholder={keyPlaceholder} value={k} onChange={(e) => commit(rows.map((r, j) => (j === i ? [e.target.value, r[1]] : r)))} />
+          <input className="h-9 flex-1 rounded-lg border border-border bg-surface px-3 text-sm shadow-[var(--shadow-card)] focus:border-brand focus:outline-none focus-visible:outline-none focus:ring-[3px] focus:ring-[var(--ring)]" placeholder={valuePlaceholder} value={v} onChange={(e) => commit(rows.map((r, j) => (j === i ? [r[0], e.target.value] : r)))} />
           <Button type="button" size="sm" variant="ghost" onClick={() => commit(rows.filter((_, j) => j !== i))} aria-label="Remove">✕</Button>
         </div>
       ))}
@@ -259,14 +262,14 @@ export function ImageField({ value, onChange, label = "Image" }: { value: string
   };
   return (
     <div className="space-y-2">
-      <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">{label}</span>
+      <span className="mb-1.5 block text-[13px] font-medium text-gray-700">{label}</span>
       <div className="flex items-start gap-3">
         <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-gray-50">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          {value ? <img src={value} alt="" className="max-h-full max-w-full object-contain" /> : <span className="text-xs text-gray-400">none</span>}
+          {value ? <img src={value} alt="" className="max-h-full max-w-full object-contain" /> : <span className="text-xs text-gray-500">None</span>}
         </div>
         <div className="flex-1 space-y-2">
-          <input className="h-9 w-full rounded-lg border border-border px-2 text-sm" placeholder="https://… or upload" value={value} onChange={(e) => onChange(e.target.value)} />
+          <input className="h-9 w-full rounded-lg border border-border bg-surface px-3 text-sm shadow-[var(--shadow-card)] focus:border-brand focus:outline-none focus-visible:outline-none focus:ring-[3px] focus:ring-[var(--ring)]" placeholder="https://… or upload" value={value} onChange={(e) => onChange(e.target.value)} />
           <div className="flex items-center gap-2">
             <label className={cn("inline-flex h-8 cursor-pointer items-center rounded-lg border border-border bg-surface px-3 text-xs font-medium hover:bg-gray-50", busy && "opacity-50")}>
               {busy ? "Uploading…" : "Upload file"}
@@ -285,7 +288,7 @@ export function ListEditor({ value, onChange, placeholder = "https://…", addLa
     <div className="space-y-2">
       {value.map((v, i) => (
         <div key={i} className="flex gap-2">
-          <input className="h-9 flex-1 rounded-lg border border-border px-2 text-sm" placeholder={placeholder} value={v} onChange={(e) => onChange(value.map((x, j) => (j === i ? e.target.value : x)))} />
+          <input className="h-9 flex-1 rounded-lg border border-border bg-surface px-3 text-sm shadow-[var(--shadow-card)] focus:border-brand focus:outline-none focus-visible:outline-none focus:ring-[3px] focus:ring-[var(--ring)]" placeholder={placeholder} value={v} onChange={(e) => onChange(value.map((x, j) => (j === i ? e.target.value : x)))} />
           <Button type="button" size="sm" variant="ghost" onClick={() => onChange(value.filter((_, j) => j !== i))} aria-label="Remove">✕</Button>
         </div>
       ))}

@@ -145,6 +145,8 @@ export function NewEventWizard({ defaultTimezone }: { defaultTimezone: string })
         }
       }
       router.push(`/admin/events/${ev.id}/designer`);
+      // Re-render the admin layout too, so the sidebar's recent events include the new one straight away.
+      router.refresh();
     } catch (e) {
       setCreateError(e instanceof Error ? e.message : String(e));
       setCreating(null);
@@ -157,7 +159,7 @@ export function NewEventWizard({ defaultTimezone }: { defaultTimezone: string })
       <ol className="mb-6 flex flex-wrap gap-2 text-sm">
         {STEPS.map((label, i) => (
           <li key={label} className="flex items-center gap-2">
-            <button type="button" disabled={i > step && !canNext} onClick={() => i < step && setStep(i)} className={cn("flex items-center gap-2 rounded-full border px-3 py-1", i === step ? "border-primary bg-primary text-white" : i < step ? "border-primary/40 bg-primary/5 text-primary" : "border-border bg-surface text-gray-500")}>
+            <button type="button" disabled={i > step && !canNext} onClick={() => i < step && setStep(i)} className={cn("flex items-center gap-2 rounded-full border px-3 py-1", i === step ? "border-brand bg-primary text-white" : i < step ? "border-brand/40 bg-brand-soft text-brand" : "border-border bg-surface text-gray-500")}>
               <span className="grid size-5 place-items-center rounded-full bg-white/20 text-xs font-semibold">{i + 1}</span>{label}
             </button>
             {i < STEPS.length - 1 && <span className="text-gray-300">→</span>}
@@ -165,7 +167,7 @@ export function NewEventWizard({ defaultTimezone }: { defaultTimezone: string })
         ))}
       </ol>
 
-      <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
+      <div className="rounded-xl border border-border bg-surface p-6 shadow-[var(--shadow-card)]">
         {step === 0 && (
           <div className="max-w-2xl space-y-4">
             <FormRow>
@@ -240,7 +242,7 @@ export function NewEventWizard({ defaultTimezone }: { defaultTimezone: string })
 function Review({ title, rows }: { title: string; rows: [string, string][] }) {
   return (
     <div className="rounded-lg border border-border p-4">
-      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">{title}</p>
+      <p className="mb-2 text-[13px] font-medium text-gray-900">{title}</p>
       <dl className="space-y-1 text-sm">{rows.map(([k, v]) => <div key={k} className="flex gap-3"><dt className="w-28 shrink-0 text-gray-500">{k}</dt><dd className="min-w-0 break-words font-medium text-gray-900">{v}</dd></div>)}</dl>
     </div>
   );
@@ -291,7 +293,7 @@ function VenueStep({ venue, footprint, onPatch, onFootprint }: { venue: Venue; f
         </FormRow>
         <div className="rounded-lg border border-border bg-gray-50 p-3">
           <div className="mb-2 flex items-center justify-between gap-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Hall outline</p>
+            <p className="text-[13px] font-medium text-gray-900">Hall outline</p>
             <span className="text-xs text-gray-500">{rect ? "Rectangle" : `${footprint.points.length} corners`}</span>
           </div>
           <FormRow cols={3}>

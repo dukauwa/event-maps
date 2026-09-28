@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { api, Badge, Button, Dialog, EmptyState, Field, Input, statusTone } from "@/components/ui";
 import { fmtDateRange, slugify } from "./lib";
 import { PageHeader, run, Switch } from "./primitives";
+import { AdminIcon } from "./icons";
 
 export interface EventCard {
   id: string; slug: string; name: string; subtitle: string | null; status: "draft" | "published" | "archived";
@@ -15,7 +16,11 @@ export interface EventCard {
 export function EventsList({ events }: { events: EventCard[] }) {
   const router = useRouter();
   const [dup, setDup] = React.useState<EventCard | null>(null);
-  const newEvent = <Link href="/admin/events/new" className="inline-flex h-10 items-center rounded-lg bg-primary px-4 text-sm font-medium text-white hover:opacity-90">New event</Link>;
+  const newEvent = (
+    <Link href="/admin/events/new" className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3.5 text-sm font-medium text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] hover:bg-gray-800">
+      <AdminIcon name="plus" size={15} /> New event
+    </Link>
+  );
   return (
     <>
       <PageHeader title="Events" subtitle={`${events.length} event${events.length === 1 ? "" : "s"} in your organisation`} actions={newEvent} />
@@ -23,34 +28,42 @@ export function EventsList({ events }: { events: EventCard[] }) {
         <EmptyState title="No events yet" hint="Locate the venue, drop in the existing plan and the designer opens with a first draft." action={newEvent} />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {events.map((e) => (
-            <article key={e.id} className="flex flex-col rounded-xl border border-border bg-surface p-5 shadow-sm">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <Link href={`/admin/events/${e.id}`} className="block truncate text-base font-semibold hover:underline">{e.name}</Link>
-                  {e.subtitle && <p className="truncate text-sm text-gray-500">{e.subtitle}</p>}
+          {events.map((e) => {
+            const pct = e.booths ? Math.round((e.sold / e.booths) * 100) : 0;
+            return (
+              <article key={e.id} className="group relative flex flex-col rounded-xl border border-border bg-surface shadow-[var(--shadow-card)] transition-[border-color,box-shadow] hover:border-border-strong hover:shadow-[var(--shadow-pop)]">
+                <div className="flex items-start justify-between gap-3 p-5 pb-4">
+                  <div className="min-w-0">
+                    <h2 className="truncate text-[15px] font-semibold tracking-tight text-gray-900">
+                      {/* The stretched link makes the whole card clickable; the footer links sit above it. */}
+                      <Link href={`/admin/events/${e.id}`} className="after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none focus-visible:after:ring-[3px] focus-visible:after:ring-[var(--ring)]">{e.name}</Link>
+                    </h2>
+                    <p className="mt-0.5 truncate text-[13px] text-gray-500">{e.subtitle ?? e.venueName ?? "Venue not set"}</p>
+                  </div>
+                  <Badge tone={statusTone[e.status] ?? "gray"} className="shrink-0">{e.status}{e.status === "published" ? ` · v${e.publishedVersion}` : ""}</Badge>
                 </div>
-                <Badge tone={statusTone[e.status] ?? "gray"}>{e.status}{e.status === "published" ? ` v${e.publishedVersion}` : ""}</Badge>
-              </div>
-              <dl className="mt-3 space-y-1 text-sm text-gray-600">
-                <div className="flex gap-2"><dt className="w-14 shrink-0 text-gray-400">When</dt><dd>{fmtDateRange(e.startsAt, e.endsAt, e.timezone)}</dd></div>
-                <div className="flex gap-2"><dt className="w-14 shrink-0 text-gray-400">Where</dt><dd className="truncate">{e.venueName ?? "Venue not set"}</dd></div>
-              </dl>
-              <div className="mt-4 grid grid-cols-3 gap-2 text-center text-sm">
-                <div className="rounded-lg bg-gray-50 py-2"><p className="font-semibold tabular-nums">{e.booths}</p><p className="text-xs text-gray-500">booths</p></div>
-                <div className="rounded-lg bg-gray-50 py-2"><p className="font-semibold tabular-nums text-blue-700">{e.sold}</p><p className="text-xs text-gray-500">sold</p></div>
-                <div className="rounded-lg bg-gray-50 py-2"><p className="font-semibold tabular-nums text-green-700">{e.available}</p><p className="text-xs text-gray-500">available</p></div>
-              </div>
-              <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-3 text-sm">
-                <Link href={`/admin/events/${e.id}`} className="font-medium text-primary hover:underline">Open</Link>
-                <span className="text-gray-300">·</span>
-                <Link href={`/admin/events/${e.id}/designer`} className="text-gray-700 hover:underline">Designer</Link>
-                <span className="text-gray-300">·</span>
-                <a href={`/e/${e.slug}`} target="_blank" rel="noreferrer" className="text-gray-700 hover:underline">Viewer ↗</a>
-                <button type="button" className="ml-auto text-gray-500 hover:text-gray-900" onClick={() => setDup(e)}>Duplicate</button>
-              </div>
-            </article>
-          ))}
+                <dl className="grid gap-1.5 px-5 text-[13px]">
+                  <div className="flex gap-2"><dt className="w-12 shrink-0 text-gray-500">When</dt><dd className="text-gray-800">{fmtDateRange(e.startsAt, e.endsAt, e.timezone)}</dd></div>
+                  <div className="flex gap-2"><dt className="w-12 shrink-0 text-gray-500">Where</dt><dd className="truncate text-gray-800">{e.venueName ?? "Not set"}</dd></div>
+                </dl>
+                <div className="mt-5 px-5">
+                  <div className="flex items-baseline justify-between text-[13px]">
+                    <span className="text-gray-500">Booths sold</span>
+                    <span className="tabular-nums text-gray-900"><span className="font-semibold">{e.sold}</span><span className="text-gray-500"> / {e.booths}</span></span>
+                  </div>
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-100" role="progressbar" aria-label={`${e.sold} of ${e.booths} booths sold`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
+                    <div className="h-full rounded-full bg-brand" style={{ width: `${pct}%` }} />
+                  </div>
+                  <p className="mt-2 text-xs text-gray-500"><span className="tabular-nums">{e.available}</span> available · <span className="tabular-nums">{e.exhibitors}</span> exhibitor{e.exhibitors === 1 ? "" : "s"}</p>
+                </div>
+                <div className="relative mt-5 flex items-center gap-1 border-t border-border px-3 py-2 text-[13px]">
+                  <Link href={`/admin/events/${e.id}/designer`} className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2 text-gray-700 hover:bg-gray-100 hover:text-gray-900"><AdminIcon name="designer" size={15} />Designer</Link>
+                  <a href={`/e/${e.slug}`} target="_blank" rel="noreferrer" className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2 text-gray-700 hover:bg-gray-100 hover:text-gray-900"><AdminIcon name="map" size={15} />Viewer<span className="sr-only"> (opens in a new tab)</span></a>
+                  <button type="button" className="ml-auto inline-flex h-8 items-center rounded-lg px-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900" onClick={() => setDup(e)}>Duplicate</button>
+                </div>
+              </article>
+            );
+          })}
         </div>
       )}
       <DuplicateDialog source={dup} onClose={() => setDup(null)} onCreated={(id) => { setDup(null); router.push(`/admin/events/${id}`); router.refresh(); }} />

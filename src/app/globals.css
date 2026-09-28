@@ -1,27 +1,60 @@
 @import "tailwindcss";
 
+/*
+ * Tessera design tokens.
+ * Minimal and white: surfaces are white, structure comes from 1px borders, ink-dark primary actions, and a single
+ * cobalt accent used sparingly (links, focus, charts, selection). Neutrals lean slightly cool so the greys read as
+ * chosen rather than default. Every text colour below clears WCAG AA (4.5:1) on white except gray-400, which is kept
+ * for placeholders, separators and disabled states only.
+ */
 :root {
-  --background: #f7f7f8;
-  --foreground: #14161a;
+  --background: #ffffff;
+  --foreground: #0f1219;
   --surface: #ffffff;
-  --muted: #6b7280;
-  --border: #e5e7eb;
-  --primary: #1d4ed8;
+  --subtle: #f8f9fb;            /* sidebar, table headers, wells */
+  --muted: #5b6475;             /* secondary text · 6.0:1 on white */
+  --border: #e6e8ee;
+  --border-strong: #d4d8e1;
+  --primary: #111318;           /* ink: primary buttons and emphasis · 18.7:1 */
   --primary-foreground: #ffffff;
-  --accent: #f97316;
+  --brand: #2f54eb;             /* cobalt accent · 5.5:1 on white */
+  --brand-soft: #eef2ff;
+  --accent: #2f54eb;
+  --ring: rgba(47, 84, 235, 0.35);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-surface: var(--surface);
+  --color-subtle: var(--subtle);
   --color-muted: var(--muted);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
   --color-accent: var(--accent);
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* Cool neutral scale (replaces Tailwind's gray everywhere). Contrast on white: 500 ≈ 5.0:1, 600 ≈ 7.6:1, 700 ≈ 11:1. */
+@theme {
+  --color-gray-25: #fcfcfd;
+  --color-gray-50: #f8f9fb;
+  --color-gray-100: #f1f3f6;
+  --color-gray-200: #e6e8ee;
+  --color-gray-300: #d4d8e1;
+  --color-gray-400: #8b93a3;
+  --color-gray-500: #636b7c;
+  --color-gray-600: #4b5261;
+  --color-gray-700: #353a46;
+  --color-gray-800: #1f232c;
+  --color-gray-900: #111318;
+  --shadow-card: 0 1px 2px rgba(16, 19, 27, 0.04);
+  --shadow-pop: 0 1px 2px rgba(16, 19, 27, 0.05), 0 12px 32px -8px rgba(16, 19, 27, 0.16);
 }
 
 html, body { height: 100%; }
@@ -29,5 +62,17 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+  font-feature-settings: "ss01", "cv11";
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+h1, h2, h3 { text-wrap: balance; }
+::selection { background: rgba(47, 84, 235, 0.16); }
+/* In the base layer so components that draw their own focus ring can switch this off with a utility. */
+@layer base {
+  :focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }

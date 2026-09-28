@@ -67,7 +67,7 @@ export function ExhibitorsTable({ event, exhibitors, categories, booths, levels,
         title={event.terms.exhibitors}
         subtitle={`${exhibitors.length} total · ${exhibitors.filter((e) => e.boothIds.length === 0).length} without a ${event.terms.booth.toLowerCase()} · ${exhibitors.filter((e) => e.featured).length} featured`}
         actions={<>
-          <a href={`${base}/export/exhibitors.csv`} className="inline-flex h-10 items-center rounded-lg border border-border bg-surface px-4 text-sm font-medium hover:bg-gray-50">Export CSV</a>
+          <a href={`${base}/export/exhibitors.csv`} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3.5 text-sm font-medium text-gray-900 shadow-[var(--shadow-card)] hover:border-border-strong hover:bg-gray-50">Export CSV</a>
           <Button variant="outline" onClick={() => setImporting(true)}>Import CSV</Button>
           <Button onClick={() => setDrawer({ mode: "create" })}>New {event.terms.exhibitor.toLowerCase()}</Button>
         </>}
@@ -81,7 +81,7 @@ export function ExhibitorsTable({ event, exhibitors, categories, booths, levels,
         <span className="ml-auto text-sm text-gray-500">{rows.length} shown{pending ? " · refreshing…" : ""}</span>
       </div>
       {sel.size > 0 && (
-        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-[#d6defd] bg-brand-soft px-3 py-2 text-sm">
           <span className="font-medium">{sel.size} selected</span>
           <Button size="sm" loading={bulkBusy} onClick={() => bulkFeatured(true)}>Mark featured</Button>
           <Button size="sm" variant="outline" loading={bulkBusy} onClick={() => bulkFeatured(false)}>Remove featured</Button>
@@ -98,18 +98,18 @@ export function ExhibitorsTable({ event, exhibitors, categories, booths, levels,
           </tr></thead>
           <tbody>
             {rows.map((e) => (
-              <tr key={e.id} className={sel.has(e.id) ? "bg-primary/5" : "hover:bg-gray-50"}>
+              <tr key={e.id} className={sel.has(e.id) ? "bg-brand-soft/60" : undefined}>
                 <Td><Checkbox checked={sel.has(e.id)} onChange={(v) => setSel((s) => { const n = new Set(s); if (v) n.add(e.id); else n.delete(e.id); return n; })} ariaLabel={`Select ${e.name}`} /></Td>
                 <Td>
                   <button type="button" className="flex items-center gap-3 text-left" onClick={() => setDrawer({ mode: "edit", row: e })}>
                     <span className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-md border border-border bg-white">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      {e.logoUrl ? <img src={e.logoUrl} alt="" className="max-h-full max-w-full object-contain" /> : <span className="text-xs font-semibold text-gray-400">{e.name[0]}</span>}
+                      {e.logoUrl ? <img src={e.logoUrl} alt="" className="max-h-full max-w-full object-contain" /> : <span className="text-xs font-semibold text-gray-500">{e.name[0]}</span>}
                     </span>
                     <span className="min-w-0"><span className="block truncate font-medium hover:underline">{e.name}</span>{e.email && <span className="block truncate text-xs text-gray-500">{e.email}</span>}</span>
                   </button>
                 </Td>
-                <Td>{e.boothLabels.length ? <span className="font-medium tabular-nums">{e.boothLabels.join(", ")}</span> : <span className="text-xs text-gray-400">unassigned</span>}</Td>
+                <Td>{e.boothLabels.length ? <span className="font-medium tabular-nums">{e.boothLabels.join(", ")}</span> : <span className="text-xs text-gray-500">unassigned</span>}</Td>
                 <Td><div className="flex flex-wrap gap-1">{e.categoryIds.slice(0, 3).map((c) => catName.get(c) ? <Pill key={c} color={catName.get(c)!.color}>{catName.get(c)!.name}</Pill> : null)}{e.categoryIds.length > 3 && <span className="text-xs text-gray-500">+{e.categoryIds.length - 3}</span>}</div></Td>
                 <Td><div className="flex flex-wrap gap-1">{e.featured && <Badge tone="purple">featured</Badge>}{e.sponsorLevel && <Badge tone="yellow">{e.sponsorLevel}</Badge>}{e.gripId && <Badge tone="blue">Grip</Badge>}</div></Td>
                 <Td className="text-gray-600">{e.country ?? "—"}</Td>
@@ -195,7 +195,7 @@ function ExhibitorDrawer({ event, row, categories, booths, levels, extras, onClo
         <Button onClick={save} loading={busy} disabled={!f.name.trim()}>{row ? "Save changes" : "Create"}</Button>
       </>}>
       <div className="mb-4 flex gap-1 border-b border-border">
-        {tabs.map((t) => <button key={t.id} type="button" onClick={() => setTab(t.id)} className={`-mb-px border-b-2 px-3 py-2 text-sm ${tab === t.id ? "border-primary font-medium text-primary" : "border-transparent text-gray-500 hover:text-gray-900"}`}>{t.label}</button>)}
+        {tabs.map((t) => <button key={t.id} type="button" onClick={() => setTab(t.id)} className={`-mb-px border-b-2 px-3 py-2 text-sm ${tab === t.id ? "border-brand font-medium text-brand" : "border-transparent text-gray-500 hover:text-gray-900"}`}>{t.label}</button>)}
       </div>
 
       {tab === "profile" && (
@@ -229,7 +229,7 @@ function ExhibitorDrawer({ event, row, categories, booths, levels, extras, onClo
             <Switch checked={f.logoInBooth} onChange={(v) => set("logoInBooth", v)} label="Logo in booth" description="Render the logo inside the booth polygon." />
           </div>
           <div>
-            <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">Metadata</span>
+            <span className="mb-1 block text-[13px] font-medium text-gray-700">Metadata</span>
             <KeyValueEditor value={f.metadata} onChange={(v) => set("metadata", v)} />
           </div>
         </div>
@@ -241,7 +241,7 @@ function ExhibitorDrawer({ event, row, categories, booths, levels, extras, onClo
           <ImageField label="Leading image (profile header)" value={f.leadingImageUrl} onChange={(v) => set("leadingImageUrl", v)} />
           <Field label="Video URL" hint="YouTube / Vimeo / MP4"><Input value={f.videoUrl} onChange={(e) => set("videoUrl", e.target.value)} placeholder="https://" /></Field>
           <div>
-            <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">Gallery image URLs</span>
+            <span className="mb-1 block text-[13px] font-medium text-gray-700">Gallery image URLs</span>
             <ListEditor value={f.gallery} onChange={(v) => set("gallery", v)} addLabel="Add image" />
           </div>
           <FormRow>
@@ -249,7 +249,7 @@ function ExhibitorDrawer({ event, row, categories, booths, levels, extras, onClo
             <Field label="Custom button URL"><Input value={f.customButtonUrl} onChange={(e) => set("customButtonUrl", e.target.value)} placeholder="https://" /></Field>
           </FormRow>
           <div>
-            <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">Social links</span>
+            <span className="mb-1 block text-[13px] font-medium text-gray-700">Social links</span>
             <div className="grid gap-2 sm:grid-cols-2">
               {SOCIAL_KEYS.map((k) => <Input key={k} value={f.socials[k] ?? ""} onChange={(e) => set("socials", { ...f.socials, [k]: e.target.value })} placeholder={`${k} URL`} aria-label={k} />)}
             </div>
@@ -260,10 +260,10 @@ function ExhibitorDrawer({ event, row, categories, booths, levels, extras, onClo
       {tab === "placement" && (
         <div className="space-y-5">
           <div>
-            <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">{event.terms.booths}</span>
+            <span className="mb-1 block text-[13px] font-medium text-gray-700">{event.terms.booths}</span>
             <div className="mb-2 flex flex-wrap gap-1">
               {f.boothIds.length === 0 && <span className="text-sm text-gray-500">No {event.terms.booth.toLowerCase()} assigned.</span>}
-              {f.boothIds.map((id) => { const b = booths.find((x) => x.id === id); return <span key={id} className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-sm">{b?.label ?? id}{b && <span className="text-xs text-gray-500">{levelName.get(b.levelId)}</span>}<button type="button" className="text-gray-400 hover:text-red-600" onClick={() => set("boothIds", f.boothIds.filter((x) => x !== id))} aria-label="Remove">×</button></span>; })}
+              {f.boothIds.map((id) => { const b = booths.find((x) => x.id === id); return <span key={id} className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-sm">{b?.label ?? id}{b && <span className="text-xs text-gray-500">{levelName.get(b.levelId)}</span>}<button type="button" className="text-gray-500 hover:text-red-600" onClick={() => set("boothIds", f.boothIds.filter((x) => x !== id))} aria-label="Remove">×</button></span>; })}
             </div>
             <SearchInput value={boothQ} onChange={setBoothQ} placeholder={`Add a ${event.terms.booth.toLowerCase()} by label…`} />
             {boothQ && (
@@ -275,7 +275,7 @@ function ExhibitorDrawer({ event, row, categories, booths, levels, extras, onClo
             <p className="mt-1 text-xs text-gray-500">Assigning here does not change the booth status; use the {event.terms.booths} page to mark it sold.</p>
           </div>
           <div>
-            <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">Categories</span>
+            <span className="mb-1 block text-[13px] font-medium text-gray-700">Categories</span>
             {categories.length === 0 ? <p className="text-sm text-gray-500">No categories yet.</p> : (
               <div className="grid gap-1 sm:grid-cols-2">
                 {categories.map((c) => <Checkbox key={c.id} checked={f.categoryIds.includes(c.id)} onChange={(v) => set("categoryIds", v ? [...f.categoryIds, c.id] : f.categoryIds.filter((x) => x !== c.id))} label={<span className="inline-flex items-center gap-1.5">{c.color && <span className="size-2 rounded-full" style={{ background: c.color }} />}{c.name}</span>} />)}

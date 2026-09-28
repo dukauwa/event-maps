@@ -41,7 +41,7 @@ export function PreviewMenu({ eventId, slug, origin = "", salesEnabled, classNam
   return (
     <div ref={ref} className={cn("relative", className)}>
       <button type="button" onClick={() => setOpen((o) => !o)} aria-haspopup="menu" aria-expanded={open} className={cn("inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface font-medium hover:bg-gray-50", size === "sm" ? "h-8 px-2.5 text-sm" : "h-10 px-4 text-sm", open && "bg-gray-100")}>
-        Preview as <span aria-hidden className="text-gray-400">▾</span>
+        Preview as <span aria-hidden className="text-gray-500">▾</span>
       </button>
       {open && (
         <div role="menu" className="absolute right-0 top-full z-50 mt-1 w-72 overflow-hidden rounded-lg border border-border bg-surface py-1 shadow-xl">

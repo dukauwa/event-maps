@@ -49,7 +49,7 @@ function ArrayDialogBody({ box, existingLabels, onClose, onApply }: { box: BBox;
       <div className="grid gap-6 md:grid-cols-[1fr_280px]">
         <div className="space-y-4">
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Block ({fmtM(w)} × {fmtM(h)} m dragged)</p>
+            <p className="mb-2 text-[13px] font-medium text-gray-900">Block ({fmtM(w)} × {fmtM(h)} m dragged)</p>
             <Toggle label="Fit as many as the dragged area allows" checked={fitToBox} onChange={setFitToBox} />
             <Row>
               <NumberField label="Columns" value={cols} onChange={(v) => { setFitToBox(false); setColumns(Math.max(1, Math.round(v ?? 1))); }} step={1} min={1} max={200} />
@@ -67,7 +67,7 @@ function ArrayDialogBody({ box, existingLabels, onClose, onApply }: { box: BBox;
             <SelectField label="Booth type" value={boothType} onChange={setBoothType} options={BOOTH_TYPES} />
           </div>
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Numbering</p>
+            <p className="mb-2 text-[13px] font-medium text-gray-900">Numbering</p>
             <div className="grid grid-cols-3 gap-2">
               <TextField label="Prefix" value={numbering.prefix} onChange={(v) => setNumbering({ ...numbering, prefix: v })} placeholder="A" />
               <NumberField label="Start" value={numbering.start} onChange={(v) => setNumbering({ ...numbering, start: Math.round(v ?? 1) })} step={1} />
@@ -162,7 +162,7 @@ export function LevelSettingsDialog({ level, levels, onClose, onPatch, onReorder
       <div className="grid gap-6 md:grid-cols-2">
         <div className="space-y-4">
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">General</p>
+            <p className="mb-2 text-[13px] font-medium text-gray-900">General</p>
             <Row>
               <TextField label="Name" value={level.name} onChange={(v) => v.trim() && patch({ name: v.trim() })} />
               <TextField label="Short name" value={level.shortName} onChange={(v) => v.trim() && patch({ shortName: v.trim().slice(0, 12) })} />
@@ -178,7 +178,7 @@ export function LevelSettingsDialog({ level, levels, onClose, onPatch, onReorder
             </div>
           </div>
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Georeference</p>
+            <p className="mb-2 text-[13px] font-medium text-gray-900">Georeference</p>
             <Toggle label="Place this level on a real-world map" checked={!!geo} onChange={(on) => patch({ georef: on ? { originLat: 0, originLng: 0, rotationDeg: 0, metersPerUnit: 1 } : null })} hint="Lets the viewer show a basemap under the plan and use GPS" />
             {geo && (
               <>
@@ -195,7 +195,7 @@ export function LevelSettingsDialog({ level, levels, onClose, onPatch, onReorder
           </div>
         </div>
         <div className="space-y-3">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Background image</p>
+          <p className="mb-2 text-[13px] font-medium text-gray-900">Background image</p>
           <div className="flex flex-wrap items-center gap-2">
             <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); e.target.value = ""; }} />
             <Button size="sm" variant="outline" loading={uploading} onClick={() => fileRef.current?.click()}><Icon name="upload" size={14} /> Upload image</Button>
@@ -290,8 +290,8 @@ export function PublishDialog({ open, eventId, slug, onClose, beforePublish }: {
         <>
           <p className="text-sm text-gray-700">Publishing takes a snapshot of the current plan and makes it live for attendees, the embed SDK and the public API. You can keep editing afterwards; changes stay private until the next publish.</p>
           <label className="mt-4 block">
-            <span className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-gray-500">Version note (optional)</span>
-            <textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} rows={3} className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40" placeholder="e.g. Added hall B, renumbered row C" />
+            <span className="mb-1 block text-xs font-medium text-gray-600">Version note (optional)</span>
+            <textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} rows={3} className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/40" placeholder="e.g. Added hall B, renumbered row C" />
           </label>
           <div className="mt-5 flex justify-end gap-2">
             <Button variant="outline" onClick={onClose}>Cancel</Button>
@@ -301,7 +301,7 @@ export function PublishDialog({ open, eventId, slug, onClose, beforePublish }: {
       ) : (
         <>
           <p className="text-sm text-gray-700">Version <strong>{result.version}</strong> is live.</p>
-          <a href={`/e/${slug}`} target="_blank" rel="noreferrer" className="mt-3 block truncate rounded-lg border border-border bg-gray-50 px-3 py-2 font-mono text-sm text-primary hover:underline">{url}</a>
+          <a href={`/e/${slug}`} target="_blank" rel="noreferrer" className="mt-3 block truncate rounded-lg border border-border bg-gray-50 px-3 py-2 font-mono text-sm text-brand hover:underline underline-offset-4">{url}</a>
           <div className="mt-5 flex justify-end gap-2">
             <Button variant="outline" onClick={() => { void navigator.clipboard?.writeText(url); toast("Link copied"); }}>Copy link</Button>
             <Button onClick={() => { setResult(null); onClose(); }}>Done</Button>

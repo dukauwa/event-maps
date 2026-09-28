@@ -36,27 +36,27 @@ export function Portal(p: Props) {
   const t = p.event.settings.terms;
   const primary = p.event.settings.branding.primaryColor;
   return (
-    <div className="min-h-dvh bg-background" style={{ ["--primary" as string]: primary }}>
+    <div className="min-h-dvh bg-background" style={{ ["--primary" as string]: primary, ["--brand" as string]: primary, ["--brand-soft" as string]: `color-mix(in srgb, ${primary} 10%, white)` }}>
       <Toaster />
       <header className="border-b border-border bg-surface">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-4 px-4 py-4">
-          {p.event.settings.branding.logoUrl && <img src={p.event.settings.branding.logoUrl} alt="" className="size-10 rounded-lg" />}
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-4 px-5 pb-4 pt-6 sm:px-8">
+          {p.event.settings.branding.logoUrl && <img src={p.event.settings.branding.logoUrl} alt="" className="size-11 rounded-xl border border-border object-contain" />}
           <div className="min-w-0 flex-1">
-            <p className="text-xs uppercase tracking-wide text-gray-500">{p.event.name} · Exhibitor portal</p>
-            <h1 className="truncate text-lg font-semibold">{p.exhibitor.name}</h1>
+            <p className="text-[13px] text-gray-500">{p.event.name} · Exhibitor portal</p>
+            <h1 className="truncate text-[22px] font-semibold tracking-[-0.02em] text-gray-900">{p.exhibitor.name}</h1>
           </div>
           <div className="flex flex-wrap gap-2">
-            {p.myBooths.map((b) => <a key={b.id} href={`${p.event.publicUrl}?booth=${encodeURIComponent(b.label)}`} target="_blank" rel="noreferrer" className="rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">{t.booth} {b.label} ↗</a>)}
+            {p.myBooths.map((b) => <a key={b.id} href={`${p.event.publicUrl}?booth=${encodeURIComponent(b.label)}`} target="_blank" rel="noreferrer" className="rounded-full bg-brand-soft px-3 py-1 text-sm font-medium text-brand">{t.booth} {b.label} ↗</a>)}
             {p.myBooths.length === 0 && <Badge tone="yellow">No {t.booth.toLowerCase()} yet</Badge>}
           </div>
         </div>
-        <nav className="mx-auto flex max-w-5xl gap-1 overflow-x-auto px-4" aria-label="Portal sections">
+        <nav className="mx-auto flex max-w-5xl gap-1 overflow-x-auto px-5 sm:px-8" aria-label="Portal sections">
           {TABS.map(([k, label]) => (
-            <button key={k} onClick={() => { setTab(k); history.replaceState(null, "", `?tab=${k}`); }} className={cn("whitespace-nowrap border-b-2 px-3 py-2 text-sm", tab === k ? "border-primary font-medium text-primary" : "border-transparent text-gray-600 hover:text-gray-900")}>{label}</button>
+            <button key={k} type="button" aria-current={tab === k ? "page" : undefined} onClick={() => { setTab(k); history.replaceState(null, "", `?tab=${k}`); }} className={cn("-mb-px whitespace-nowrap border-b-2 px-3 py-2.5 text-sm transition-colors", tab === k ? "border-gray-900 font-medium text-gray-900" : "border-transparent text-gray-600 hover:text-gray-900")}>{label}</button>
           ))}
         </nav>
       </header>
-      <main className="mx-auto max-w-5xl px-4 py-6">
+      <main className="mx-auto max-w-5xl px-5 py-8 sm:px-8">
         {!ready ? <p className="text-sm text-gray-500">Signing you in…</p> : (
           <>
             {tab === "profile" && <ProfileTab p={p} onSaved={() => router.refresh()} />}
@@ -124,7 +124,7 @@ function ProfileTab({ p, onSaved }: { p: Props; onSaved: () => void }) {
             <Field label="Country"><Input value={f.country} onChange={set("country")} /></Field>
           </div>
           <Field label="Categories">
-            <div className="flex flex-wrap gap-2">{p.categories.map((c) => { const on = f.categoryIds.includes(c.id); return <button type="button" key={c.id} onClick={() => setF((s) => ({ ...s, categoryIds: on ? s.categoryIds.filter((x) => x !== c.id) : [...s.categoryIds, c.id] }))} className={cn("rounded-full border px-3 py-1 text-sm", on ? "border-primary bg-primary/10 text-primary" : "border-border text-gray-700")}>{c.name}</button>; })}</div>
+            <div className="flex flex-wrap gap-2">{p.categories.map((c) => { const on = f.categoryIds.includes(c.id); return <button type="button" key={c.id} onClick={() => setF((s) => ({ ...s, categoryIds: on ? s.categoryIds.filter((x) => x !== c.id) : [...s.categoryIds, c.id] }))} className={cn("rounded-full border px-3 py-1 text-sm", on ? "border-brand bg-brand-soft text-brand" : "border-border text-gray-700")}>{c.name}</button>; })}</div>
           </Field>
           <Field label="Tags" hint="Comma separated"><Input value={f.tags} onChange={set("tags")} /></Field>
         </Card>
@@ -133,7 +133,7 @@ function ProfileTab({ p, onSaved }: { p: Props; onSaved: () => void }) {
           <Field label="Gallery">
             <div className="flex flex-wrap gap-2">
               {f.gallery.map((g, i) => <div key={g + i} className="relative size-20 overflow-hidden rounded-lg border border-border"><img src={g} alt="" className="size-full object-cover" /><button type="button" aria-label="Remove image" onClick={() => setF((s) => ({ ...s, gallery: s.gallery.filter((_, j) => j !== i) }))} className="absolute right-1 top-1 rounded bg-black/60 px-1 text-xs text-white">×</button></div>)}
-              <label className="flex size-20 cursor-pointer items-center justify-center rounded-lg border border-dashed border-border text-2xl text-gray-400 hover:bg-gray-50">+<input type="file" accept="image/*" className="hidden" onChange={async (ev) => { const file = ev.target.files?.[0]; if (file) { try { const url = await upload(file); setF((s) => ({ ...s, gallery: [...s.gallery, url] })); } catch { toast("Upload failed", "error"); } } }} /></label>
+              <label className="flex size-20 cursor-pointer items-center justify-center rounded-lg border border-dashed border-border text-2xl text-gray-500 hover:bg-gray-50">+<input type="file" accept="image/*" className="hidden" onChange={async (ev) => { const file = ev.target.files?.[0]; if (file) { try { const url = await upload(file); setF((s) => ({ ...s, gallery: [...s.gallery, url] })); } catch { toast("Upload failed", "error"); } } }} /></label>
             </div>
           </Field>
           <Field label="Hero image URL"><Input value={f.leadingImageUrl} onChange={set("leadingImageUrl")} placeholder="https://" /></Field>
@@ -149,7 +149,7 @@ function ProfileTab({ p, onSaved }: { p: Props; onSaved: () => void }) {
         <div className="sticky bottom-4"><Button size="lg" onClick={save} loading={busy} className="w-full shadow-lg">Save profile</Button></div>
       </div>
       <aside className="lg:sticky lg:top-6 lg:self-start">
-        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">Live preview</p>
+        <p className="mb-2 text-[13px] font-medium text-gray-700">Live preview</p>
         <Card className="space-y-3">
           {f.leadingImageUrl && <img src={f.leadingImageUrl} alt="" className="h-28 w-full rounded-lg object-cover" />}
           <div className="flex items-center gap-3">{f.logoUrl ? <img src={f.logoUrl} alt="" className="size-12 rounded-lg" /> : <div className="size-12 rounded-lg bg-gray-100" />}<div><p className="font-semibold leading-tight">{f.name || "Company name"}</p><p className="text-xs text-gray-500">{p.myBooths.map((b) => `${p.event.settings.terms.booth} ${b.label}`).join(", ") || `No ${p.event.settings.terms.booth.toLowerCase()} yet`}</p></div></div>
@@ -186,12 +186,12 @@ function BoothTab({ p }: { p: Props }) {
           <ul className="mt-3 divide-y divide-border">{p.myBooths.map((b) => <li key={b.id} className="flex items-center justify-between py-3 text-sm"><div><p className="font-medium">{t.booth} {b.label}</p><p className="text-gray-500">{b.levelName} · {b.areaM2} m²</p></div><div className="text-right"><Badge tone={statusTone[b.status]}>{b.status}</Badge>{b.price && <p className="mt-1 text-gray-600">{formatMoney(b.price.priceCents, b.price.currency)}</p>}</div></li>)}</ul>
         </Card>
       )}
-      {holds.map((o) => <Card key={o.id} className="border-yellow-300 bg-yellow-50"><p className="text-sm">You have a hold on {t.booth.toLowerCase()} <strong>{p.availableBooths.find((b) => b.id === o.boothId)?.label ?? o.boothId}</strong> until {fmtDateTime(o.expiresAt, p.event.timezone)}.</p>{o.checkoutUrl && <a href={o.checkoutUrl} className="mt-2 inline-block text-sm font-medium text-primary underline">Continue to payment</a>}</Card>)}
+      {holds.map((o) => <Card key={o.id} className="border-yellow-300 bg-yellow-50"><p className="text-sm">You have a hold on {t.booth.toLowerCase()} <strong>{p.availableBooths.find((b) => b.id === o.boothId)?.label ?? o.boothId}</strong> until {fmtDateTime(o.expiresAt, p.event.timezone)}.</p>{o.checkoutUrl && <a href={o.checkoutUrl} className="mt-2 inline-block text-sm font-medium text-brand underline underline-offset-4">Continue to payment</a>}</Card>)}
       <Card>
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="font-semibold">Available {t.booths.toLowerCase()} <span className="text-gray-500">({list.length})</span></h2>
-            <a href={`${p.event.publicUrl}/book`} target="_blank" rel="noreferrer" className="text-sm font-medium text-primary hover:underline">Pick on the interactive map ↗</a>
+            <a href={`${p.event.publicUrl}/book`} target="_blank" rel="noreferrer" className="text-sm font-medium text-brand hover:underline underline-offset-4">Pick on the interactive map ↗</a>
           </div>
           <div className="flex gap-2">
             <Select value={level} onChange={(e) => setLevel(e.target.value)} aria-label="Level"><option value="">All levels</option>{levels.map((l) => <option key={l}>{l}</option>)}</Select>
@@ -248,7 +248,7 @@ function OrdersTab({ p }: { p: Props }) {
   if (!p.orders.length) return <EmptyState title="No orders yet" hint="Reserve a booth or add extras to see orders here." />;
   return (
     <Card>
-      <ul className="divide-y divide-border">{p.orders.map((o) => <li key={o.id} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm"><div><p className="font-medium">{p.event.settings.terms.booth} {p.myBooths.find((b) => b.id === o.boothId)?.label ?? p.availableBooths.find((b) => b.id === o.boothId)?.label ?? o.boothId}</p><p className="text-xs text-gray-500">{fmtDateTime(o.createdAt, p.event.timezone)} · ref {o.id}</p></div><div className="flex items-center gap-3"><span className="font-medium">{formatMoney(o.amountCents + o.taxCents, o.currency)}</span><Badge tone={statusTone[o.status]}>{o.status.replace("_", " ")}</Badge>{o.status === "hold" && o.checkoutUrl && <a href={o.checkoutUrl} className="text-primary underline">Pay now</a>}</div></li>)}</ul>
+      <ul className="divide-y divide-border">{p.orders.map((o) => <li key={o.id} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm"><div><p className="font-medium">{p.event.settings.terms.booth} {p.myBooths.find((b) => b.id === o.boothId)?.label ?? p.availableBooths.find((b) => b.id === o.boothId)?.label ?? o.boothId}</p><p className="text-xs text-gray-500">{fmtDateTime(o.createdAt, p.event.timezone)} · ref {o.id}</p></div><div className="flex items-center gap-3"><span className="font-medium">{formatMoney(o.amountCents + o.taxCents, o.currency)}</span><Badge tone={statusTone[o.status]}>{o.status.replace("_", " ")}</Badge>{o.status === "hold" && o.checkoutUrl && <a href={o.checkoutUrl} className="text-brand underline">Pay now</a>}</div></li>)}</ul>
     </Card>
   );
 }
@@ -259,7 +259,7 @@ function AnalyticsTab({ p }: { p: Props }) {
   const tiles: [string, number][] = [["Profile views", p.analytics.totals.exhibitor_view ?? 0], ["Bookmarks", p.analytics.totals.bookmark ?? 0], ["Directions requested", p.analytics.totals.route ?? 0], ["Button clicks", p.analytics.totals.custom_button ?? 0]];
   return (
     <div className="space-y-6">
-      <div className="grid gap-3 sm:grid-cols-4">{tiles.map(([k, v]) => <Card key={k}><p className="text-xs uppercase tracking-wide text-gray-500">{k}</p><p className="mt-1 text-2xl font-semibold">{v}</p></Card>)}</div>
+      <div className="grid gap-3 sm:grid-cols-4">{tiles.map(([k, v]) => <Card key={k}><p className="text-[13px] text-gray-500">{k}</p><p className="mt-1 text-2xl font-semibold">{v}</p></Card>)}</div>
       <Card>
         <h2 className="font-semibold">Profile views, last 30 days</h2>
         {days.length === 0 ? <p className="mt-2 text-sm text-gray-500">No views yet.</p> : (

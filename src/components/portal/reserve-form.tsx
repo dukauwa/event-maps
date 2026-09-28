@@ -53,7 +53,7 @@ export function ReserveForm({ eventSlug, boothId, boothLabel, mode, extras, term
       </div>
       {extras.length > 0 && (
         <fieldset className="space-y-2">
-          <legend className="text-xs font-medium uppercase tracking-wide text-gray-500">Add-ons</legend>
+          <legend className="text-[13px] font-medium text-gray-700">Add-ons</legend>
           {extras.map((x) => (
             <label key={x.id} className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2 text-sm">
               <span>{x.name} {x.priceCents != null && <span className="text-gray-500">· {formatMoney(x.priceCents, x.currency)}</span>}</span>
@@ -62,7 +62,7 @@ export function ReserveForm({ eventSlug, boothId, boothLabel, mode, extras, term
           ))}
         </fieldset>
       )}
-      {termsUrl && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} /> I accept the <a className="text-primary underline" href={termsUrl} target="_blank" rel="noreferrer">terms and conditions</a></label>}
+      {termsUrl && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} /> I accept the <a className="text-brand underline" href={termsUrl} target="_blank" rel="noreferrer">terms and conditions</a></label>}
       <Button type="submit" loading={busy} size="lg" className="w-full">{mode === "buy" ? "Continue to payment" : mode === "reserve" ? "Reserve now" : "Send inquiry"}</Button>
       {mode === "buy" && <p className="text-xs text-gray-500">The booth is held for you while you complete checkout.</p>}
     </form>

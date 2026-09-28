@@ -73,7 +73,7 @@ export function AnalyticsView({ event, summary, levels, from, to }: { event: Ana
             </ul>
           )}
           <div className="mt-6 space-y-1 text-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">All events</p>
+            <p className="text-[13px] font-medium text-gray-900">All events</p>
             {Object.entries(t).sort((a, b) => b[1] - a[1]).map(([k, v]) => <div key={k} className="flex justify-between"><span className="text-gray-600">{k.replace(/_/g, " ")}</span><span className="tabular-nums">{v.toLocaleString()}</span></div>)}
           </div>
         </Section>
@@ -111,9 +111,9 @@ function TopList({ title, description, rows, unit, tone }: { title: string; desc
         <ol className="space-y-2">
           {rows.slice(0, 10).map((r, i) => (
             <li key={r.id} className="text-sm">
-              <div className="flex justify-between gap-2"><span className="truncate"><span className="mr-2 text-gray-400">{i + 1}.</span>{r.label}</span><span className="shrink-0 tabular-nums text-gray-500">{r.value.toLocaleString()} {unit}</span></div>
-              <div className="mt-1 h-1 overflow-hidden rounded-full bg-gray-100"><div className={`h-full rounded-full ${tone === "warn" ? "bg-orange-400" : "bg-primary/70"}`} style={{ width: `${(r.value / max) * 100}%` }} /></div>
-              {r.sub && <p className="text-xs text-gray-400">{r.sub}</p>}
+              <div className="flex justify-between gap-2"><span className="truncate"><span className="mr-2 text-gray-500">{i + 1}.</span>{r.label}</span><span className="shrink-0 tabular-nums text-gray-500">{r.value.toLocaleString()} {unit}</span></div>
+              <div className="mt-1 h-1 overflow-hidden rounded-full bg-gray-100"><div className={`h-full rounded-full ${tone === "warn" ? "bg-orange-400" : "bg-brand/70"}`} style={{ width: `${(r.value / max) * 100}%` }} /></div>
+              {r.sub && <p className="text-xs text-gray-500">{r.sub}</p>}
             </li>
           ))}
         </ol>

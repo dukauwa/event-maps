@@ -34,8 +34,8 @@ export const LayersPanel = React.memo(function LayersPanel({ layers, setLayer, b
   return (
     <aside className="flex h-full w-64 shrink-0 flex-col border-r border-border bg-surface text-sm">
       <div className="border-b border-border">
-        <button type="button" className="flex w-full items-center justify-between px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500 hover:bg-gray-50" onClick={() => setLayersOpen((o) => !o)}>
-          <span>Layers</span><span className="text-gray-400">{layersOpen ? "▾" : "▸"}</span>
+        <button type="button" className="flex w-full items-center justify-between px-3 py-2 text-xs font-semibold text-gray-900 hover:bg-gray-50" onClick={() => setLayersOpen((o) => !o)}>
+          <span>Layers</span><span className="text-gray-500">{layersOpen ? "▾" : "▸"}</span>
         </button>
         {layersOpen && (
           <ul className="pb-1">
@@ -55,16 +55,16 @@ export const LayersPanel = React.memo(function LayersPanel({ layers, setLayer, b
       <div className="flex min-h-0 flex-1 flex-col">
         <div className="px-3 pt-2">
           <div className="flex items-center justify-between">
-            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">Booths · {levelName}</h3>
-            <span className="text-[11px] text-gray-400">{filtered.length}/{booths.length}</span>
+            <h3 className="text-xs font-semibold text-gray-900">Booths · {levelName}</h3>
+            <span className="text-[11px] text-gray-500">{filtered.length}/{booths.length}</span>
           </div>
           <div className="relative mt-1.5">
-            <Icon name="search" size={14} className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search label or exhibitor" className="h-8 w-full rounded-md border border-border bg-surface pl-7 pr-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40" />
+            <Icon name="search" size={14} className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-gray-500" />
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search label or exhibitor" className="h-8 w-full rounded-md border border-border bg-surface pl-7 pr-2 text-xs focus:outline-none focus:ring-2 focus:ring-brand/40" />
           </div>
           <div className="mt-1.5 flex flex-wrap gap-1">
             {(["", "available", "held", "reserved", "sold", "unavailable"] as const).map((s) => (
-              <button key={s} type="button" onClick={() => setStatus(s)} className={cn("flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px]", status === s ? "border-primary bg-primary/10 text-primary" : "border-border text-gray-600 hover:bg-gray-50")}>
+              <button key={s} type="button" onClick={() => setStatus(s)} className={cn("flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[11px]", status === s ? "border-brand bg-brand-soft text-brand" : "border-border text-gray-600 hover:bg-gray-50")}>
                 {s && <span className="size-2 rounded-full" style={{ background: (colors as Record<string, string>)[s] }} />}
                 {s || "All"}{s && counts[s] ? ` ${counts[s]}` : ""}
               </button>
@@ -72,7 +72,7 @@ export const LayersPanel = React.memo(function LayersPanel({ layers, setLayer, b
           </div>
         </div>
         <ul className="mt-2 min-h-0 flex-1 overflow-y-auto px-2 pb-2">
-          {filtered.length === 0 && <li className="px-2 py-6 text-center text-xs text-gray-400">{booths.length ? "No booths match." : "No booths on this level yet. Press B to draw one."}</li>}
+          {filtered.length === 0 && <li className="px-2 py-6 text-center text-xs text-gray-500">{booths.length ? "No booths match." : "No booths on this level yet. Press B to draw one."}</li>}
           {filtered.map((b) => {
             const ex = exhibitorNames.get(b.id);
             return (
@@ -80,12 +80,12 @@ export const LayersPanel = React.memo(function LayersPanel({ layers, setLayer, b
                 <button
                   type="button"
                   onClick={(e) => onPick(b.id, e.shiftKey || e.metaKey || e.ctrlKey)}
-                  className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1 text-left hover:bg-gray-100", selSet.has(b.id) && "bg-primary/10 hover:bg-primary/15")}
+                  className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1 text-left hover:bg-gray-100", selSet.has(b.id) && "bg-brand-soft hover:bg-[#e3e9ff]")}
                   title={`${b.label}${ex?.length ? ` — ${ex.join(", ")}` : ""}`}
                 >
                   <span className="size-2.5 shrink-0 rounded-sm border border-black/10" style={{ background: boothFill(b.status, b.boothType, colors, b.colors) }} />
                   <span className="w-14 shrink-0 truncate font-medium text-gray-900">{b.label}</span>
-                  <span className="flex-1 truncate text-xs text-gray-500">{ex?.length ? ex.join(", ") : <span className="italic text-gray-300">{b.status}</span>}</span>
+                  <span className="flex-1 truncate text-xs text-gray-500">{ex?.length ? ex.join(", ") : <span className="text-gray-500">{b.status}</span>}</span>
                 </button>
               </li>
             );

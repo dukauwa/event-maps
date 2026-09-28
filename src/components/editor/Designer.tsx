@@ -380,7 +380,7 @@ export function Designer({ bundle, event, notes = {}, priceOverrides }: Designer
   const hint = TOOLS.find((t) => t.id === tool)?.hint ?? "";
 
   if (!level) {
-    return <div className="grid h-full place-items-center text-sm text-gray-500">This event has no levels. <button type="button" className="ml-2 text-primary underline" onClick={addLevel}>Add one</button></div>;
+    return <div className="grid h-full place-items-center text-sm text-gray-500">This event has no levels. <button type="button" className="ml-2 text-brand underline" onClick={addLevel}>Add one</button></div>;
   }
 
   return (

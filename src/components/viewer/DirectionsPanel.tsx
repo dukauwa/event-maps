@@ -41,7 +41,7 @@ function EndpointPicker({ label, value, onPick, onClear, placeholder, icon, allo
   const pick = (ep: RouteEndpoint | string) => { onPick(ep); setQ(""); setEditing(false); };
   return (
     <div className="flex flex-col gap-1">
-      <label className="tv-muted text-xs font-semibold uppercase tracking-wide">{label}</label>
+      <label className="tv-muted text-xs font-medium">{label}</label>
       {!editing && value ? (
         <button type="button" className="tv-input flex items-center gap-2 text-start" onClick={() => setEditing(true)} aria-label={`${label}: ${value}`}>
           <Icon name={icon} size={16} className="tv-muted flex-none" /><span className="flex-1 truncate">{value}</span><Icon name="chevronDown" size={16} className="tv-muted" />
@@ -104,8 +104,8 @@ export function DirectionsPanel() {
         {route && (
           <>
             <div className="flex items-center gap-4 tv-card">
-              <div><div className="tv-muted text-xs">{t("walkingTime")}</div><div className="text-lg font-bold">{t("minutes", { n: Math.max(1, Math.round(route.durationSeconds / 60)) })}</div></div>
-              <div><div className="tv-muted text-xs">{t("distance")}</div><div className="text-lg font-bold">{t("meters", { n: Math.round(route.distanceM) })}</div></div>
+              <div><div className="tv-muted text-xs">{t("walkingTime")}</div><div className="text-lg font-semibold">{t("minutes", { n: Math.max(1, Math.round(route.durationSeconds / 60)) })}</div></div>
+              <div><div className="tv-muted text-xs">{t("distance")}</div><div className="text-lg font-semibold">{t("meters", { n: Math.round(route.distanceM) })}</div></div>
               {route.levelIds.length > 1 && <div className="flex gap-1 ms-auto">{route.levelIds.map((id) => <button key={id} type="button" className="tv-pill" style={{ height: 28, minWidth: 0 }} aria-pressed={id === s.levelId} onClick={() => controller.showRouteLevel(id)}>{b.levels.find((l) => l.id === id)?.shortName ?? id}</button>)}</div>}
             </div>
             {s.kiosk && b.event.settings.features.sharing && (

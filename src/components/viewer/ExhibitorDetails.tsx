@@ -47,7 +47,7 @@ export function ExhibitorDetails({ ex }: { ex: BundleExhibitor }) {
           <div className="flex items-start gap-3">
             <Logo ex={ex} size={64} />
             <div className="min-w-0 flex-1">
-              <h1 className="m-0 text-lg font-bold leading-tight">{ex.name}</h1>
+              <h1 className="m-0 text-lg font-semibold leading-tight">{ex.name}</h1>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
                 <SponsorBadge level={ex.sponsorLevel} />
                 {ex.featured && !ex.sponsorLevel && <span className="tv-badge">{t("featured")}</span>}

@@ -48,7 +48,7 @@ export function PlanTab() {
               <li className="flex items-center gap-2 text-sm"><span className="tv-step-icon"><Icon name="flag" /></span><span>{t("tourStart")}: {startLabel || t("entrance")}</span></li>
               {opt.order.map((ep, i) => (
                 <li key={i} className="flex items-center gap-2 text-sm">
-                  <span className="tv-step-icon font-bold" style={{ fontSize: 12 }}>{i + 1}</span>
+                  <span className="tv-step-icon font-semibold" style={{ fontSize: 12 }}>{i + 1}</span>
                   <button type="button" className="tv-btn tv-btn-ghost tv-btn-sm !justify-start flex-1 truncate" onClick={() => { const leg = opt.legs[i]; if (leg) { controller.showRouteLevel(leg.steps.find((st) => st.points.length)?.levelId ?? s.levelId); } }}>
                     {controller.endpointLabel(ep)}
                   </button>

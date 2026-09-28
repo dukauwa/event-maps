@@ -7,7 +7,8 @@ import { quoteBooth } from "@/lib/services/orders";
 import { formatMoney } from "@/lib/pricing";
 import { BoothPreview } from "@/lib/portal/booth-preview";
 import { ReserveForm } from "@/components/portal/reserve-form";
-import { Badge, statusTone } from "@/components/ui";
+import { Badge } from "@/components/ui";
+import { statusTone } from "@/components/ui/status";
 
 export default async function ReservePage({ params, searchParams }: { params: Promise<{ slug: string; boothId: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
   const { slug, boothId } = await params;

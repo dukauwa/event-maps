@@ -86,7 +86,6 @@ export interface ViewerState {
   circles: CircleSpec[];
   highlightedBoothIds: string[];
   layerVisibility: Record<string, boolean>;
-  camera: PlanMapCamera | null;
   mapReady: boolean;
   mapError: string | null;
   dialog: ViewerDialog;
@@ -145,6 +144,7 @@ export class ViewerController {
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
   private gpsWatch: number | null = null;
   private lastSynced: Partial<ViewerState> = {};
+  private camera: PlanMapCamera | null = null;
   private syncing = false;
   private resyncQueued = false;
   private lastNotice = 0;
@@ -207,7 +207,6 @@ export class ViewerController {
       circles: [],
       highlightedBoothIds: [],
       layerVisibility: {},
-      camera: null,
       mapReady: false,
       mapError: null,
       dialog: null,
@@ -301,7 +300,9 @@ export class ViewerController {
         if (this.state.debugCoords) this.emit("getCoordsClick", { x: round2(plan[0]), y: round2(plan[1]), levelId: this.state.levelId, lng: lngLat[0], lat: lngLat[1] });
         if (this.state.panel.kind !== "list" && this.state.panel.kind !== "directions" && !this.state.kiosk) this.closePanel();
       }),
-      map.on("cameraChanged", (camera) => { this.setState({ camera }); this.emit("cameraChanged", camera); }),
+      // Camera moves arrive many times a second while zooming or panning. Nothing on screen depends on them, so they
+      // stay out of React state: re-rendering the whole viewer (and rewriting the URL) per move is what made zoom stutter.
+      map.on("cameraChanged", (camera) => { this.camera = camera; this.emit("cameraChanged", camera); }),
     );
     if (map.isReady()) {
       this.setState({ mapReady: true });
@@ -1373,7 +1374,7 @@ export class ViewerController {
       selectedBooths: s.selectedBoothIds.map((id) => this.boothById(id)?.label ?? id), selectedExhibitor: s.selectedExhibitorId,
       panel: s.panel, tab: s.tab, categories: s.categoryIds, route: s.route ? this.routePayload(s.route) : null, position: s.position, gpsTracking: s.gpsTracking,
       bookmarks: this.getBookmarks(), markers: s.markers.length, circles: s.circles.length, highlighted: s.highlightedBoothIds.length,
-      language: s.locale, theme: s.theme, view: s.view, kiosk: s.kiosk, visibility: s.visibility, search: s.searchQuery, camera: s.camera,
+      language: s.locale, theme: s.theme, view: s.view, kiosk: s.kiosk, visibility: s.visibility, search: s.searchQuery, camera: this.camera,
     };
   }
 

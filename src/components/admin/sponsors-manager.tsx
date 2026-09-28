@@ -43,7 +43,7 @@ export function SponsorsManager({ event, banners, exhibitors }: { event: Sponsor
                     <Td className="whitespace-nowrap text-xs text-gray-600">{b.startsAt || b.endsAt ? `${b.startsAt ? fmtDate(b.startsAt, event.timezone) : "…"} → ${b.endsAt ? fmtDate(b.endsAt, event.timezone) : "…"}` : "Always"}</Td>
                     <Td className="text-right tabular-nums">{b.weight}</Td>
                     <Td className="text-right tabular-nums">{b.impressions.toLocaleString()}</Td>
-                    <Td className="text-right tabular-nums">{b.clicks.toLocaleString()} <span className="text-xs text-gray-400">{pct(b.clicks, b.impressions)}</span></Td>
+                    <Td className="text-right tabular-nums">{b.clicks.toLocaleString()} <span className="text-xs text-gray-500">{pct(b.clicks, b.impressions)}</span></Td>
                     <Td><Switch checked={b.active} onChange={() => toggle(b)} /></Td>
                     <Td className="text-right"><span className="inline-flex gap-1"><Button size="sm" variant="ghost" onClick={() => setDialog({ row: b })}>Edit</Button><ConfirmButton variant="ghost" onConfirm={() => run(() => api(`${base}/banners/${b.id}`, { method: "DELETE" }), { success: "Banner deleted", onDone: refresh })}>Delete</ConfirmButton></span></Td>
                   </tr>
@@ -52,14 +52,14 @@ export function SponsorsManager({ event, banners, exhibitors }: { event: Sponsor
             </Table>
           )}
         </Section>
-        <Section title={`Featured ${event.exhibitors.toLowerCase()} & sponsors`} description="Shown first in lists and in the sponsors strip of the viewer. Manage flags from the exhibitors page." actions={<Link href={`/admin/events/${event.id}/exhibitors?flag=featured`} className="text-sm font-medium text-primary hover:underline">Manage →</Link>}>
+        <Section title={`Featured ${event.exhibitors.toLowerCase()} & sponsors`} description="Shown first in lists and in the sponsors strip of the viewer. Manage flags from the exhibitors page." actions={<Link href={`/admin/events/${event.id}/exhibitors?flag=featured`} className="text-sm font-medium text-brand hover:underline underline-offset-4">Manage →</Link>}>
           {featured.length === 0 ? <EmptyState title={`No featured ${event.exhibitors.toLowerCase()}`} hint="Mark exhibitors as featured or give them a sponsor level." /> : (
             <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {featured.map((e) => (
                 <li key={e.id} className="flex items-center gap-3 rounded-lg border border-border px-3 py-2">
                   <span className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-md border border-border bg-white">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    {e.logoUrl ? <img src={e.logoUrl} alt="" className="max-h-full max-w-full object-contain" /> : <span className="text-xs font-semibold text-gray-400">{e.name[0]}</span>}
+                    {e.logoUrl ? <img src={e.logoUrl} alt="" className="max-h-full max-w-full object-contain" /> : <span className="text-xs font-semibold text-gray-500">{e.name[0]}</span>}
                   </span>
                   <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{e.name}</span><span className="block truncate text-xs text-gray-500">{e.boothLabels.join(", ") || "no booth"}</span></span>
                   <span className="flex flex-col items-end gap-1">{e.featured && <Badge tone="purple">featured</Badge>}{e.sponsorLevel && <Badge tone="yellow">{e.sponsorLevel}</Badge>}</span>

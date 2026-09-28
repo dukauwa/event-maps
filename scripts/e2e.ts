@@ -212,7 +212,9 @@ async function main() {
     await wp.fill("input[placeholder='51.5083']", "51.5083");
     await wp.fill("input[placeholder='0.0299']", "0.0299");
     await wp.fill("input[placeholder='ExCeL London']", "ExCeL London");
-    await wp.waitForTimeout(4000);
+    // Offline, the street style only falls back after its fetch times out, so wait for the map itself, then for the fly-in.
+    await wp.getByText("Loading map…").waitFor({ state: "hidden", timeout: 30000 }).catch(() => failures.push("venue map never finished loading"));
+    await wp.waitForTimeout(2500);
     // Shape the hall on the map: push the east wall out, then pull a new corner out of the north wall.
     const box = await wp.locator(".maplibregl-canvas").boundingBox();
     if (!box) failures.push("venue map canvas missing");

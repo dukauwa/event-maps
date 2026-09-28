@@ -47,7 +47,7 @@ export const TopBar = React.memo(function TopBar(p: TopBarProps) {
       <Link href={`/admin/events/${p.eventId}`} className="grid size-8 place-items-center rounded-lg text-gray-600 hover:bg-gray-100" aria-label="Back to event" title="Back to event"><Icon name="back_arrow" /></Link>
       <div className="min-w-0 max-w-56">
         <p className="truncate text-sm font-semibold leading-tight" title={p.eventName}>{p.eventName}</p>
-        <p className="text-[10px] leading-tight text-gray-400">Floor plan designer</p>
+        <p className="text-[11px] leading-tight text-gray-500">Floor plan designer</p>
       </div>
       <div className="mx-2 h-6 w-px bg-border" />
       <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto" role="tablist" aria-label="Levels">
@@ -59,7 +59,7 @@ export const TopBar = React.memo(function TopBar(p: TopBarProps) {
             onClick={() => (l.id === p.activeLevelId ? p.onLevelSettings(l.id) : p.onSelectLevel(l.id))}
             onDoubleClick={() => p.onLevelSettings(l.id)}
             title={l.id === p.activeLevelId ? "Click for level settings" : `Switch to ${l.name}`}
-            className={cn("group flex h-8 shrink-0 items-center gap-1 rounded-lg px-3 text-sm transition-colors", l.id === p.activeLevelId ? "bg-primary/10 font-medium text-primary" : "text-gray-700 hover:bg-gray-100")}
+            className={cn("group flex h-8 shrink-0 items-center gap-1 rounded-lg px-3 text-sm transition-colors", l.id === p.activeLevelId ? "bg-brand-soft font-medium text-brand" : "text-gray-700 hover:bg-gray-100")}
           >
             <span className="truncate">{l.name}</span>
             {l.id === p.activeLevelId && <Icon name="settings" size={13} className="opacity-60" />}
@@ -173,7 +173,7 @@ export function StatusBar(p: StatusBarProps) {
       {p.level && <span>{p.level.name}: {p.level.widthM} × {p.level.heightM} m</span>}
       <span>{p.selectionCount ? `${p.selectionCount} selected` : "nothing selected"}</span>
       {p.dirty && <span className="text-amber-700">● unsaved</span>}
-      <span className="ml-auto truncate font-sans text-gray-400">{p.hint}</span>
+      <span className="ml-auto truncate font-sans text-gray-500">{p.hint}</span>
     </footer>
   );
 }

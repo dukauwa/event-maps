@@ -12,12 +12,12 @@ export function IconButton({ icon, label, shortcut, active, disabled, onClick, c
       aria-pressed={active}
       disabled={disabled}
       onClick={onClick}
-      className={cn("group relative grid size-9 place-items-center rounded-lg text-gray-700 transition-colors hover:bg-gray-100 disabled:opacity-40 disabled:hover:bg-transparent", active && "bg-primary/10 text-primary hover:bg-primary/15", className)}
+      className={cn("group relative grid size-9 place-items-center rounded-lg text-gray-700 transition-colors hover:bg-gray-100 disabled:opacity-40 disabled:hover:bg-transparent", active && "bg-brand-soft text-brand hover:bg-[#e3e9ff]", className)}
     >
       <Icon name={icon} size={size} />
       <span className={cn("pointer-events-none absolute z-50 hidden whitespace-nowrap rounded-md bg-gray-900 px-2 py-1 text-xs text-white shadow-lg group-hover:block", tip === "right" ? "left-full top-1/2 ml-2 -translate-y-1/2" : "left-1/2 top-full mt-2 -translate-x-1/2")}>
         {label}
-        {shortcut && <kbd className="ml-2 rounded border border-white/30 px-1 font-mono text-[10px]">{shortcut}</kbd>}
+        {shortcut && <kbd className="ml-2 rounded border border-white/30 px-1 font-mono text-[11px]">{shortcut}</kbd>}
       </span>
     </button>
   );
@@ -42,7 +42,7 @@ export function CommitInput({ value, onCommit, type = "text", className, placeho
       onChange={(e) => setDraft(e.target.value)}
       onBlur={commit}
       onKeyDown={(e) => { if (e.key === "Enter") { commit(); (e.target as HTMLInputElement).blur(); } if (e.key === "Escape") { setDraft(value); (e.target as HTMLInputElement).blur(); } }}
-      className={cn("h-8 w-full rounded-md border border-border bg-surface px-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:bg-gray-50 disabled:text-gray-500", className)}
+      className={cn("h-8 w-full rounded-lg border border-border bg-surface px-2 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-brand/40 disabled:bg-gray-50 disabled:text-gray-500", className)}
     />
   );
 }
@@ -55,10 +55,10 @@ export function NumberField({ label, value, onChange, step = 0.1, min, max, unit
   };
   return (
     <label className={cn("block", className)}>
-      {label && <span className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-gray-500">{label}</span>}
+      {label && <span className="mb-1 block text-xs font-medium text-gray-600">{label}</span>}
       <div className="relative">
         <CommitInput type="number" value={value == null ? "" : String(value)} onCommit={commit} step={step} min={min} max={max} disabled={disabled} className={unit ? "pr-8" : undefined} placeholder={nullable ? "—" : undefined} />
-        {unit && <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">{unit}</span>}
+        {unit && <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-500">{unit}</span>}
       </div>
     </label>
   );
@@ -67,7 +67,7 @@ export function NumberField({ label, value, onChange, step = 0.1, min, max, unit
 export function TextField({ label, value, onChange, placeholder, disabled, className }: { label?: string; value: string; onChange: (v: string) => void; placeholder?: string; disabled?: boolean; className?: string }) {
   return (
     <label className={cn("block", className)}>
-      {label && <span className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-gray-500">{label}</span>}
+      {label && <span className="mb-1 block text-xs font-medium text-gray-600">{label}</span>}
       <CommitInput value={value} onCommit={onChange} placeholder={placeholder} disabled={disabled} />
     </label>
   );
@@ -77,8 +77,8 @@ export function SelectField<T extends string>({ label, value, onChange, options,
   const opts = (options as readonly (T | { value: T; label: string })[]).map((o) => (typeof o === "string" ? { value: o, label: o.replace(/_/g, " ") } : o));
   return (
     <label className={cn("block", className)}>
-      {label && <span className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-gray-500">{label}</span>}
-      <select value={value} disabled={disabled} onChange={(e) => onChange(e.target.value as T)} className="h-8 w-full rounded-md border border-border bg-surface px-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:bg-gray-50">
+      {label && <span className="mb-1 block text-xs font-medium text-gray-600">{label}</span>}
+      <select value={value} disabled={disabled} onChange={(e) => onChange(e.target.value as T)} className="h-8 w-full rounded-lg border border-border bg-surface px-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand/40 disabled:bg-gray-50">
         {opts.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
     </label>
@@ -104,7 +104,7 @@ export function ColorField({ label, value, onChange, nullable = true }: { label:
       <div className="flex items-center gap-1">
         <input type="color" value={shown} onChange={(e) => onChange(e.target.value)} className={cn("size-7 cursor-pointer rounded border border-border bg-transparent p-0", !value && "opacity-40")} aria-label={label} />
         <CommitInput value={value ?? ""} onCommit={(v) => onChange(v.trim() ? v.trim() : null)} placeholder="auto" className="w-20 font-mono text-xs" />
-        {nullable && value && <button type="button" className="text-gray-400 hover:text-gray-700" onClick={() => onChange(null)} aria-label={`Reset ${label}`}><Icon name="x" size={14} /></button>}
+        {nullable && value && <button type="button" className="text-gray-500 hover:text-gray-700" onClick={() => onChange(null)} aria-label={`Reset ${label}`}><Icon name="x" size={14} /></button>}
       </div>
     </div>
   );
@@ -114,7 +114,7 @@ export function Section({ title, children, right, className }: { title: string; 
   return (
     <section className={cn("border-b border-border px-3 py-3", className)}>
       <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">{title}</h3>
+        <h3 className="text-xs font-semibold text-gray-900">{title}</h3>
         {right}
       </div>
       <div className="space-y-2">{children}</div>
@@ -146,11 +146,11 @@ export function Menu({ trigger, items, align = "left" }: { trigger: (open: boole
           {items.map((it, i) => it === "sep" ? <div key={i} className="my-1 border-t border-border" /> : (
             it.href ? (
               <a key={i} href={it.href} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-800 hover:bg-gray-100" onClick={() => setOpen(false)} role="menuitem">
-                {it.icon && <Icon name={it.icon} size={15} className="text-gray-500" />}<span className="flex-1">{it.label}</span>{it.hint && <span className="text-xs text-gray-400">{it.hint}</span>}
+                {it.icon && <Icon name={it.icon} size={15} className="text-gray-500" />}<span className="flex-1">{it.label}</span>{it.hint && <span className="text-xs text-gray-500">{it.hint}</span>}
               </a>
             ) : (
               <button key={i} type="button" disabled={it.disabled} className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-gray-800 hover:bg-gray-100 disabled:opacity-40" onClick={() => { setOpen(false); it.onClick?.(); }} role="menuitem">
-                {it.icon && <Icon name={it.icon} size={15} className="text-gray-500" />}<span className="flex-1">{it.label}</span>{it.hint && <span className="text-xs text-gray-400">{it.hint}</span>}
+                {it.icon && <Icon name={it.icon} size={15} className="text-gray-500" />}<span className="flex-1">{it.label}</span>{it.hint && <span className="text-xs text-gray-500">{it.hint}</span>}
               </button>
             )
           ))}

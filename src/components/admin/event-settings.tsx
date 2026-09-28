@@ -111,7 +111,7 @@ function Branding({ settings, base, onSaved }: { settings: EventSettings; base: 
         <FormRow cols={3}><ColorInput label="Primary colour" value={v.primaryColor} onChange={(x) => set("primaryColor", x)} /><ColorInput label="Accent colour" value={v.accentColor} onChange={(x) => set("accentColor", x)} /><ColorInput label="Plan background" value={v.backgroundColor} onChange={(x) => set("backgroundColor", x)} /></FormRow>
         <FormRow><ImageField label="Logo" value={v.logoUrl} onChange={(x) => set("logoUrl", x)} /><div className="space-y-3"><Field label="Map style" hint="Basemap under georeferenced plans"><Select value={v.mapStyle} onChange={(e) => set("mapStyle", e.target.value as typeof v.mapStyle)}><option value="light">Light</option><option value="dark">Dark</option><option value="streets">Streets</option><option value="none">None (plan only)</option></Select></Field><Field label="Font family"><Input value={v.fontFamily} onChange={(e) => set("fontFamily", e.target.value)} placeholder="Inter, system-ui, sans-serif" /></Field></div></FormRow>
         <div>
-          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">Booth status colours</p>
+          <p className="mb-2 text-[13px] font-medium text-gray-700">Booth status colours</p>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {(Object.keys(v.boothColors) as (keyof typeof v.boothColors)[]).map((k) => <ColorInput key={k} label={k} value={v.boothColors[k]} onChange={(x) => set("boothColors", { ...v.boothColors, [k]: x })} />)}
           </div>
@@ -143,7 +143,7 @@ function Languages({ settings, base, onSaved }: { settings: EventSettings; base:
   return (
     <Section id="languages" title="Languages" description="Viewer UI translations. Exhibitor content is shown as entered.">
       <form onSubmit={submit} className="space-y-4">
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">{SUPPORTED_LOCALES.map((l) => <Checkbox key={l} checked={v.languages.includes(l)} onChange={(on) => toggle(l, on)} label={<span>{LOCALE_NAMES[l]} <span className="text-xs text-gray-400">{l}</span></span>} />)}</div>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">{SUPPORTED_LOCALES.map((l) => <Checkbox key={l} checked={v.languages.includes(l)} onChange={(on) => toggle(l, on)} label={<span>{LOCALE_NAMES[l]} <span className="text-xs text-gray-500">{l}</span></span>} />)}</div>
         <Field label="Default language" className="max-w-xs"><Select value={v.locale} onChange={(e) => set("locale", e.target.value as Locale)}>{v.languages.map((l) => <option key={l} value={l}>{LOCALE_NAMES[l]}</option>)}</Select></Field>
         <SaveBar busy={busy} dirty={dirty} />
       </form>

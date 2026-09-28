@@ -245,7 +245,7 @@ function OrdersSection({ event, orders }: { event: SalesEvent; orders: OrderRow[
               return (
                 <tr key={o.id} className="hover:bg-gray-50">
                   <Td className="whitespace-nowrap text-gray-600">{fmtDateTime(o.createdAt, event.timezone)}{o.expiresAt && o.status === "hold" && <span className="block text-xs text-yellow-700">expires {fmtDateTime(o.expiresAt, event.timezone)}</span>}</Td>
-                  <Td><Link href={`/admin/events/${event.id}/booths?q=${encodeURIComponent(o.boothLabel)}`} className="font-medium text-primary hover:underline">{o.boothLabel}</Link></Td>
+                  <Td><Link href={`/admin/events/${event.id}/booths?q=${encodeURIComponent(o.boothLabel)}`} className="font-medium text-brand hover:underline underline-offset-4">{o.boothLabel}</Link></Td>
                   <Td>
                     {o.exhibitorId ? <Link href={`/admin/events/${event.id}/exhibitors?q=${encodeURIComponent(o.exhibitorName ?? o.company ?? "")}`} className="font-medium hover:underline">{o.exhibitorName ?? o.company}</Link> : <span className="font-medium">{o.company ?? "—"}</span>}
                     <span className="block truncate text-xs text-gray-500">{[o.contactName, o.contactEmail].filter(Boolean).join(" · ")}</span>

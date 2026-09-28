@@ -169,7 +169,10 @@ export class PlanMap {
       zoom,
       bearing,
       pitch: this.threeD ? 55 : 0,
-      minZoom: Math.max(1, cam.zoom - 4),
+      // Zoom out at most two levels past the fitted view (the plan then fills a quarter of the width). The pan bounds
+      // below leave room for that whole view, so MapLibre never has to shift the centre mid-zoom: zoom stays anchored
+      // under the cursor instead of jumping.
+      minZoom: Math.max(1, cam.zoom - 2),
       maxZoom: 23.5,
       maxPitch: 70,
       attributionControl: wantsBasemap ? { compact: true } : false,
@@ -179,7 +182,9 @@ export class PlanMap {
       dragRotate: true,
       pitchWithRotate: true,
       touchPitch: true,
-      canvasContextAttributes: { antialias: true, preserveDrawingBuffer: true },
+      // No preserveDrawingBuffer: it makes the GPU copy every frame, which is what zooming felt like. Snapshots (print,
+      // `toDataURL`) redraw synchronously and read the fresh buffer instead.
+      canvasContextAttributes: { antialias: true, preserveDrawingBuffer: false },
     });
     this.map = map;
     map.touchZoomRotate.disableRotation();
@@ -264,7 +269,7 @@ export class PlanMap {
   private allLevelsBounds(): LngLatBoundsLike {
     let sw: LngLat = [Infinity, Infinity], ne: LngLat = [-Infinity, -Infinity];
     for (const level of this.bundle.levels) {
-      const [a, b] = lngLatBounds(levelGeoref(level), levelPlanBBox(level, this.bundle.booths), 1.0);
+      const [a, b] = lngLatBounds(levelGeoref(level), levelPlanBBox(level, this.bundle.booths), 2.5);
       sw = [Math.min(sw[0], a[0]), Math.min(sw[1], a[1])];
       ne = [Math.max(ne[0], b[0]), Math.max(ne[1], b[1])];
     }
@@ -688,7 +693,10 @@ export class PlanMap {
 
   toDataURL(): string | null {
     try {
-      return this.map?.getCanvas().toDataURL("image/png") ?? null;
+      if (!this.map) return null;
+      // The drawing buffer is not preserved between frames: render now and read it in the same task.
+      this.map.redraw();
+      return this.map.getCanvas().toDataURL("image/png");
     } catch {
       return null;
     }

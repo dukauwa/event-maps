@@ -21,6 +21,7 @@
     "@libsql/client": "^0.18.0",
     "@turf/turf": "7.4.0",
     "drizzle-orm": "0.45.2",
+    "geist": "^1.7.2",
     "jose": "^6.2.12",
     "maplibre-gl": "6.9.0",
     "nanoid": "^6.0.1",

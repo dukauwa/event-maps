@@ -65,7 +65,7 @@ export const PropertiesPanel = React.memo(function PropertiesPanel(props: Proper
         </div>
       )}
       {count === 0 && <TransitionsList {...props} />}
-      {count === 0 && tool === "select" && <div className="mt-auto p-3 text-xs text-gray-400">Select something on the canvas to edit it.</div>}
+      {count === 0 && tool === "select" && <div className="mt-auto p-3 text-xs text-gray-500">Select something on the canvas to edit it.</div>}
     </aside>
   );
 });
@@ -77,7 +77,7 @@ function ToolPanel(props: PropertiesPanelProps) {
   const def = TOOLS.find((t) => t.id === tool)!;
   return (
     <>
-      <Section title={def.label} right={<kbd className="rounded border border-border px-1 font-mono text-[10px] text-gray-500">{def.key}</kbd>}>
+      <Section title={def.label} right={<kbd className="rounded border border-border px-1 font-mono text-[11px] text-gray-500">{def.key}</kbd>}>
         <p className="text-xs text-gray-600">{def.hint}</p>
       </Section>
       {tool === "booth" && (
@@ -200,7 +200,7 @@ function BoothPanel({ booths, ...props }: PropertiesPanelProps & { booths: Edito
         <ColorField label="Border" value={b.colors?.border} onChange={(v) => patch({ colors: { ...(b.colors ?? {}), border: v ?? undefined } })} />
       </Section>
       {!many && (
-        <Section title="Exhibitors" right={<span className="text-[10px] text-gray-400">read-only</span>}>
+        <Section title="Exhibitors" right={<span className="text-[11px] text-gray-500">read-only</span>}>
           {exhibitors.length ? <ul className="space-y-0.5 text-xs text-gray-800">{exhibitors.map((n) => <li key={n} className="truncate">• {n}</li>)}</ul> : <p className="text-xs text-gray-500">No exhibitor assigned. Assign from the Booths page.</p>}
         </Section>
       )}
@@ -216,7 +216,7 @@ function BoothPanel({ booths, ...props }: PropertiesPanelProps & { booths: Edito
             <div key={k} className="flex items-center gap-1">
               <TextField value={k} onChange={(nk) => { const m: Record<string, string> = {}; for (const [kk, vv] of metaEntries) m[kk === k ? (nk.trim() || k) : kk] = vv; dispatch({ type: "setBoothMetadata", id: b.id, metadata: m }); }} className="w-2/5" />
               <TextField value={v} onChange={(nv) => dispatch({ type: "updateBooths", ids: [b.id], patch: { metadata: { [k]: nv } } })} className="flex-1" />
-              <button type="button" className="text-gray-400 hover:text-red-600" aria-label={`Remove ${k}`} onClick={() => { const m = { ...b.metadata }; delete m[k]; dispatch({ type: "setBoothMetadata", id: b.id, metadata: m }); }}><Icon name="x" size={14} /></button>
+              <button type="button" className="text-gray-500 hover:text-red-600" aria-label={`Remove ${k}`} onClick={() => { const m = { ...b.metadata }; delete m[k]; dispatch({ type: "setBoothMetadata", id: b.id, metadata: m }); }}><Icon name="x" size={14} /></button>
             </div>
           ))}
         </Section>
@@ -247,7 +247,7 @@ function NotesArea({ value, onCommit }: { value: string; onCommit: (v: string) =
   const [draft, setDraft] = React.useState(value);
   const [prev, setPrev] = React.useState(value);
   if (prev !== value) { setPrev(value); setDraft(value); }
-  return <textarea value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={() => draft !== value && onCommit(draft)} rows={3} maxLength={2000} className="w-full rounded-md border border-border bg-surface px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40" placeholder="Internal notes (not shown to attendees)" />;
+  return <textarea value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={() => draft !== value && onCommit(draft)} rows={3} maxLength={2000} className="w-full rounded-md border border-border bg-surface px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand/40" placeholder="Internal notes (not shown to attendees)" />;
 }
 
 function ElementPanel({ elements, ...props }: PropertiesPanelProps & { elements: EditorElement[] }) {
@@ -365,7 +365,7 @@ function TransitionPanel({ transition: t, ...props }: PropertiesPanelProps & { t
         <p className="mb-1 font-medium">Connects</p>
         {t.nodeIds.length < 2 && <p className="text-amber-700">Needs two nodes on different levels before it is saved.</p>}
         <ul className="space-y-0.5">
-          {t.nodeIds.map((id) => { const l = levelOf(id); return <li key={id}><button type="button" className="text-primary hover:underline" onClick={() => { if (l) actions.setActiveLevel(l.id); dispatch({ type: "select", ids: [id] }); }}>{l?.name ?? "?"}</button> · node {id.slice(0, 10)}…</li>; })}
+          {t.nodeIds.map((id) => { const l = levelOf(id); return <li key={id}><button type="button" className="text-brand hover:underline underline-offset-4" onClick={() => { if (l) actions.setActiveLevel(l.id); dispatch({ type: "select", ids: [id] }); }}>{l?.name ?? "?"}</button> · node {id.slice(0, 10)}…</li>; })}
         </ul>
       </div>
       <Button size="sm" variant="outline" className="w-full text-red-600" onClick={() => actions.requestDelete([t.id])}><Icon name="trash" size={14} /> Delete transition</Button>

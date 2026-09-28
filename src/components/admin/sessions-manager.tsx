@@ -45,7 +45,7 @@ export function SessionsManager({ event, sessions, booths, places }: { event: Se
         <div className="space-y-6">
           {days.map(([day, list]) => (
             <section key={day}>
-              <h2 className="mb-2 text-sm font-semibold text-gray-700">{day} <span className="font-normal text-gray-400">· {list.length}</span></h2>
+              <h2 className="mb-2 text-sm font-semibold text-gray-700">{day} <span className="font-normal text-gray-500">· {list.length}</span></h2>
               <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
                 {list.map((s) => (
                   <li key={s.id} className="flex flex-wrap items-center gap-3 px-4 py-3 hover:bg-gray-50">
@@ -125,7 +125,7 @@ function SessionDialog({ event, row, booths, places, tracks, onClose, onSaved }:
         </FormRow>
         <Field label="Description"><Textarea value={f.description} onChange={(e) => set("description", e.target.value)} className="min-h-20" /></Field>
         <div>
-          <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">Speakers</span>
+          <span className="mb-1 block text-[13px] font-medium text-gray-700">Speakers</span>
           <div className="space-y-2">
             {f.speakers.map((s, i) => (
               <div key={i} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2">

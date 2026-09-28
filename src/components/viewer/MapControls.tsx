@@ -37,7 +37,7 @@ export function MapControls() {
           </>}
           {f.threeD && (
             <button type="button" className="tv-icon-btn" aria-pressed={s.view === "3d"} onClick={() => controller.switchView()} aria-label={s.view === "3d" ? t("view2d") : t("view3d")} title={s.view === "3d" ? t("view2d") : t("view3d")}>
-              <span className="text-xs font-bold">{s.view === "3d" ? "2D" : "3D"}</span>
+              <span className="text-xs font-semibold">{s.view === "3d" ? "2D" : "3D"}</span>
             </button>
           )}
           {f.gps && level?.georef && !s.kiosk && (

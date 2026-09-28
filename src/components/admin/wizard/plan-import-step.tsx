@@ -105,14 +105,14 @@ export function PlanImportStep({ state, onChange, widthM, onWidthM, metersPerPix
             onClick={() => inputRef.current?.click()} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") inputRef.current?.click(); }}
             onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)}
             onDrop={(e) => { e.preventDefault(); setOver(false); onFile(e.dataTransfer.files?.[0] ?? null); }}
-            className={cn("grid min-h-[360px] cursor-pointer place-items-center rounded-xl border-2 border-dashed p-8 text-center transition-colors", over ? "border-primary bg-primary/5" : "border-border bg-gray-50 hover:bg-gray-100")}
+            className={cn("grid min-h-[360px] cursor-pointer place-items-center rounded-xl border-2 border-dashed p-8 text-center transition-colors", over ? "border-brand bg-brand-soft" : "border-border bg-gray-50 hover:bg-gray-100")}
           >
             <div>
               {busy ? <p className="text-sm text-gray-600">Reading the plan…</p> : (
                 <>
                   <p className="text-base font-medium">Drop the existing floor plan here</p>
                   <p className="mt-1 text-sm text-gray-500">PDF (vector or scanned), PNG, JPG, WebP or SVG. We render it, find every closed stand outline and draft the booths for you.</p>
-                  <p className="mt-4 text-xs text-gray-400">Or continue without one and draw the plan from scratch in the designer.</p>
+                  <p className="mt-4 text-xs text-gray-500">Or continue without one and draw the plan from scratch in the designer.</p>
                 </>
               )}
             </div>

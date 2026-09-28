@@ -15,7 +15,7 @@ export interface EventRef { id: string; name: string }
 export function OrgSettings({ orgName, apiKeys, webhooks, events, origin }: { orgName: string; apiKeys: ApiKeyRow[]; webhooks: WebhookRow[]; events: EventRef[]; origin: string }) {
   return (
     <>
-      <PageHeader crumbs={[{ href: "/admin", label: "Events" }, { label: "Organisation settings" }]} title={orgName} subtitle="API access and outbound webhooks for every event in this organisation." actions={<Link href="/docs" className="inline-flex h-10 items-center rounded-lg border border-border bg-surface px-4 text-sm font-medium hover:bg-gray-50">Developer docs ↗</Link>} />
+      <PageHeader crumbs={[{ href: "/admin", label: "Events" }, { label: "Organisation settings" }]} title={orgName} subtitle="API access and outbound webhooks for every event in this organisation." actions={<Link href="/docs" className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3.5 text-sm font-medium text-gray-900 shadow-[var(--shadow-card)] hover:border-border-strong hover:bg-gray-50">Developer docs ↗</Link>} />
       <div className="space-y-6">
         <ApiKeys apiKeys={apiKeys} origin={origin} />
         <Webhooks webhooks={webhooks} events={events} origin={origin} />
@@ -46,7 +46,7 @@ function ApiKeys({ apiKeys, origin }: { apiKeys: ApiKeyRow[]; origin: string }) 
           <thead><tr><Th>Name</Th><Th>Key</Th><Th>Scopes</Th><Th>Last used</Th><Th>Created</Th><Th className="w-24" /></tr></thead>
           <tbody>
             {[...active, ...revoked].map((k) => (
-              <tr key={k.id} className={k.revokedAt ? "text-gray-400" : "hover:bg-gray-50"}>
+              <tr key={k.id} className={k.revokedAt ? "text-gray-500" : "hover:bg-gray-50"}>
                 <Td className="font-medium">{k.name}{k.revokedAt && <Badge tone="red" className="ml-2">revoked</Badge>}</Td>
                 <Td><code className="font-mono text-xs">{k.prefix}…</code></Td>
                 <Td><span className="flex gap-1">{k.scopes.map((s) => <Badge key={s} tone={s === "write" ? "blue" : "gray"}>{s}</Badge>)}</span></Td>
@@ -69,7 +69,7 @@ function ApiKeys({ apiKeys, origin }: { apiKeys: ApiKeyRow[]; origin: string }) 
         ) : (
           <form onSubmit={create} className="space-y-4">
             <Field label="Name" hint="Where the key is used, e.g. “Website”, “CRM sync”"><Input required value={name} onChange={(e) => setName(e.target.value)} autoFocus /></Field>
-            <div><span className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">Scopes</span><div className="flex gap-4"><Checkbox checked={scopes.includes("read")} onChange={(v) => setScopes(v ? [...new Set([...scopes, "read"])] : scopes.filter((s) => s !== "read"))} label="read" /><Checkbox checked={scopes.includes("write")} onChange={(v) => setScopes(v ? [...new Set([...scopes, "write"])] : scopes.filter((s) => s !== "write"))} label="write" /></div></div>
+            <div><span className="mb-1 block text-[13px] font-medium text-gray-700">Scopes</span><div className="flex gap-4"><Checkbox checked={scopes.includes("read")} onChange={(v) => setScopes(v ? [...new Set([...scopes, "read"])] : scopes.filter((s) => s !== "read"))} label="read" /><Checkbox checked={scopes.includes("write")} onChange={(v) => setScopes(v ? [...new Set([...scopes, "write"])] : scopes.filter((s) => s !== "write"))} label="write" /></div></div>
             <div className="flex justify-end gap-2"><Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancel</Button><Button type="submit" loading={busy} disabled={!name.trim() || scopes.length === 0}>Create</Button></div>
           </form>
         )}
@@ -112,7 +112,7 @@ function Webhooks({ webhooks, events, origin }: { webhooks: WebhookRow[]; events
               const tr = testResult[w.id];
               return (
                 <tr key={w.id} className="hover:bg-gray-50">
-                  <Td><code className="block max-w-xs truncate font-mono text-xs" title={w.url}>{w.url}</code><span className="text-xs text-gray-400">secret {w.secretPreview}</span>{tr && <span className={`block text-xs ${tr.status === "success" ? "text-green-700" : "text-red-700"}`}>Test: {tr.status}{tr.responseCode ? ` (HTTP ${tr.responseCode})` : ""}{tr.lastError ? ` — ${tr.lastError}` : ""}</span>}</Td>
+                  <Td><code className="block max-w-xs truncate font-mono text-xs" title={w.url}>{w.url}</code><span className="text-xs text-gray-500">secret {w.secretPreview}</span>{tr && <span className={`block text-xs ${tr.status === "success" ? "text-green-700" : "text-red-700"}`}>Test: {tr.status}{tr.responseCode ? ` (HTTP ${tr.responseCode})` : ""}{tr.lastError ? ` — ${tr.lastError}` : ""}</span>}</Td>
                   <Td>{w.events.includes("*") ? <Badge tone="blue">all events</Badge> : <span className="flex max-w-xs flex-wrap gap-1">{w.events.slice(0, 4).map((e) => <Badge key={e}>{e}</Badge>)}{w.events.length > 4 && <span className="text-xs text-gray-500">+{w.events.length - 4}</span>}</span>}</Td>
                   <Td className="text-gray-600">{w.eventId ? eventName.get(w.eventId) ?? w.eventId : "Organisation"}</Td>
                   <Td><Switch checked={w.active} onChange={(v) => run(() => api(`/api/v1/webhooks/${w.id}`, { method: "PATCH", json: { active: v } }), { success: v ? "Enabled" : "Paused", onDone: refresh })} /></Td>
@@ -139,12 +139,12 @@ function Webhooks({ webhooks, events, origin }: { webhooks: WebhookRow[]; events
             <Field label="Endpoint URL"><Input required type="url" value={f.url} onChange={(e) => setF({ ...f, url: e.target.value })} placeholder="https://example.com/hooks/tessera" autoFocus /></Field>
             <Field label="Scope"><Select value={f.eventId} onChange={(e) => setF({ ...f, eventId: e.target.value })}><option value="">All events in the organisation</option>{events.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}</Select></Field>
             <div>
-              <div className="mb-2 flex items-center justify-between"><span className="text-xs font-medium uppercase tracking-wide text-gray-500">Event types</span><Switch checked={f.all} onChange={(v) => setF({ ...f, all: v })} label="All event types" /></div>
+              <div className="mb-2 flex items-center justify-between"><span className="text-[13px] font-medium text-gray-700">Event types</span><Switch checked={f.all} onChange={(v) => setF({ ...f, all: v })} label="All event types" /></div>
               {!f.all && (
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {groups.map(([g, list]) => (
                     <div key={g} className="rounded-lg border border-border p-3">
-                      <div className="mb-1 flex items-center justify-between"><span className="text-xs font-semibold capitalize">{g}</span><button type="button" className="text-xs text-primary hover:underline" onClick={() => setF({ ...f, events: list.every((e) => f.events.includes(e)) ? f.events.filter((e) => !list.includes(e)) : [...new Set([...f.events, ...list])] })}>{list.every((e) => f.events.includes(e)) ? "none" : "all"}</button></div>
+                      <div className="mb-1 flex items-center justify-between"><span className="text-xs font-semibold capitalize">{g}</span><button type="button" className="text-xs text-brand hover:underline underline-offset-4" onClick={() => setF({ ...f, events: list.every((e) => f.events.includes(e)) ? f.events.filter((e) => !list.includes(e)) : [...new Set([...f.events, ...list])] })}>{list.every((e) => f.events.includes(e)) ? "none" : "all"}</button></div>
                       <div className="space-y-1">{list.map((e) => <Checkbox key={e} checked={f.events.includes(e)} onChange={(v) => setF({ ...f, events: v ? [...f.events, e] : f.events.filter((x) => x !== e) })} label={<span className="font-mono text-xs">{e}</span>} />)}</div>
                     </div>
                   ))}

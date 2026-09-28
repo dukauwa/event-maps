@@ -6,7 +6,8 @@ import { getOrder } from "@/lib/services/orders";
 import { getBooth } from "@/lib/services/booths";
 import { getExhibitor } from "@/lib/services/exhibitors";
 import { formatMoney } from "@/lib/pricing";
-import { Badge, statusTone } from "@/components/ui";
+import { Badge } from "@/components/ui";
+import { statusTone } from "@/components/ui/status";
 
 export default async function DonePage({ params, searchParams }: { params: Promise<{ slug: string; boothId: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
   const { slug, boothId } = await params;

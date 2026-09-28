@@ -98,6 +98,16 @@ function Root({ preview }: { preview: boolean }) {
     document.title = `${b.event.name}`;
   }, [locale, b.event.name]);
 
+  // Printing: the map canvas does not keep its pixels between frames, so print a snapshot image in its place.
+  const printMap = useRef<HTMLImageElement>(null);
+  useEffect(() => {
+    const before = () => { const url = controller.getMap()?.toDataURL(); if (printMap.current && url) printMap.current.src = url; };
+    const after = () => { printMap.current?.removeAttribute("src"); };
+    window.addEventListener("beforeprint", before);
+    window.addEventListener("afterprint", after);
+    return () => { window.removeEventListener("beforeprint", before); window.removeEventListener("afterprint", after); };
+  }, [controller]);
+
   // Kiosk idle reset.
   useEffect(() => {
     if (!s.kiosk) return;
@@ -147,6 +157,8 @@ function Root({ preview }: { preview: boolean }) {
         <div className="tv-map-wrap" role="region" aria-label={t("map")}>
           <MapCanvas />
           <MapControls />
+          {/* eslint-disable-next-line @next/next/no-img-element -- print-only snapshot of the map canvas */}
+          <img ref={printMap} alt="" className="tv-print-map" />
         </div>
       </div>
       <Dialogs />
@@ -157,7 +169,7 @@ function Root({ preview }: { preview: boolean }) {
             // eslint-disable-next-line @next/next/no-img-element -- organiser logo
             <img src={branding.logoUrl} alt="" style={{ width: 120, height: 120, borderRadius: 24 }} />
           ) : null}
-          <div className="text-3xl font-bold">{b.event.name}</div>
+          <div className="text-3xl font-semibold">{b.event.name}</div>
           <div className="text-xl opacity-90">{t("kioskIdle")}</div>
         </div>
       )}

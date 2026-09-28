@@ -19,7 +19,7 @@ export function SessionDetails({ se }: { se: BundleSession }) {
     <div className="flex flex-col flex-1 min-h-0">
       <PanelHeader title={se.title} onBack={() => controller.back()} />
       <div className="tv-panel-content tv-scrollbar px-4 py-3 flex flex-col gap-3">
-        <h1 className="m-0 text-lg font-bold leading-tight">{se.title}</h1>
+        <h1 className="m-0 text-lg font-semibold leading-tight">{se.title}</h1>
         <div className="flex items-center gap-2 flex-wrap text-sm">
           <span className="tv-chip"><Icon name="calendar" size={14} />{formatDay(se.startsAt, locale, tz)}</span>
           <span className="tv-chip"><Icon name="clock" size={14} />{formatTime(se.startsAt, locale, tz)} – {formatTime(se.endsAt, locale, tz)}</span>

@@ -65,12 +65,12 @@ export function CategoriesManager({ event, categories }: { event: { id: string; 
                       <span className="inline-flex items-center gap-0.5">
                         <button type="button" className="rounded px-1 text-gray-500 hover:bg-gray-100 disabled:opacity-30" disabled={i === 0 || pending} onClick={() => move(i, -1)} aria-label="Move up">↑</button>
                         <button type="button" className="rounded px-1 text-gray-500 hover:bg-gray-100 disabled:opacity-30" disabled={i === categories.length - 1 || pending} onClick={() => move(i, 1)} aria-label="Move down">↓</button>
-                        <span className="ml-1 text-xs tabular-nums text-gray-400">{i + 1}</span>
+                        <span className="ml-1 text-xs tabular-nums text-gray-500">{i + 1}</span>
                       </span>
                     </Td>
                     <Td>
                       {editing?.id === c.id ? <Input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} className="h-8" autoFocus onKeyDown={(e) => { if (e.key === "Enter") void save(); if (e.key === "Escape") setEditing(null); }} /> : (
-                        <span className="font-medium">{c.parentId && byParent.get(c.parentId) ? <span className="text-gray-400">{byParent.get(c.parentId)} / </span> : null}{c.name}</span>
+                        <span className="font-medium">{c.parentId && byParent.get(c.parentId) ? <span className="text-gray-500">{byParent.get(c.parentId)} / </span> : null}{c.name}</span>
                       )}
                     </Td>
                     <Td>

@@ -64,9 +64,9 @@ export function BoothsTable({ event, booths, levels, exhibitors, initialQuery = 
         title={event.terms.booths}
         subtitle={<span className="flex flex-wrap gap-x-3">{booths.length} total{BOOTH_STATUSES.map((s) => <span key={s} className="inline-flex items-center gap-1"><StatusDot status={s} />{counts[s] ?? 0} {s}</span>)}</span>}
         actions={<>
-          <a href={`${base}/export/booths.csv`} className="inline-flex h-10 items-center rounded-lg border border-border bg-surface px-4 text-sm font-medium hover:bg-gray-50">Export CSV</a>
+          <a href={`${base}/export/booths.csv`} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3.5 text-sm font-medium text-gray-900 shadow-[var(--shadow-card)] hover:border-border-strong hover:bg-gray-50">Export CSV</a>
           <Button variant="outline" onClick={() => setImporting(true)}>Import CSV</Button>
-          <a href={`/admin/events/${event.id}/designer`} className="inline-flex h-10 items-center rounded-lg bg-primary px-4 text-sm font-medium text-white hover:opacity-90">Draw {event.terms.booths.toLowerCase()} in designer</a>
+          <a href={`/admin/events/${event.id}/designer`} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3.5 text-sm font-medium text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] hover:bg-gray-800">Draw {event.terms.booths.toLowerCase()} in designer</a>
         </>}
       />
 
@@ -80,7 +80,7 @@ export function BoothsTable({ event, booths, levels, exhibitors, initialQuery = 
       </div>
 
       {sel.size > 0 && (
-        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-[#d6defd] bg-brand-soft px-3 py-2 text-sm">
           <span className="font-medium">{sel.size} selected</span>
           <Select value={bulkStatus} onChange={(e) => setBulkStatus(e.target.value as BoothStatus | "")} className="h-8 w-auto"><option value="">Set status…</option>{BOOTH_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}</Select>
           <Button size="sm" disabled={!bulkStatus} loading={bulkBusy} onClick={() => bulk((id) => api(`${base}/booths/${id}/status`, { method: "POST", json: { status: bulkStatus } }), "Status updated")}>Apply</Button>
@@ -108,9 +108,9 @@ export function BoothsTable({ event, booths, levels, exhibitors, initialQuery = 
           </thead>
           <tbody>
             {rows.map((b) => (
-              <tr key={b.id} className={sel.has(b.id) ? "bg-primary/5" : "hover:bg-gray-50"}>
+              <tr key={b.id} className={sel.has(b.id) ? "bg-brand-soft/60" : undefined}>
                 <Td><Checkbox checked={sel.has(b.id)} onChange={(v) => setSel((s) => { const n = new Set(s); if (v) n.add(b.id); else n.delete(b.id); return n; })} ariaLabel={`Select ${b.label}`} /></Td>
-                <Td><button type="button" className="font-medium hover:underline" onClick={() => setEdit(b)}>{b.label}</button>{b.externalId && <span className="ml-1 text-xs text-gray-400">{b.externalId}</span>}</Td>
+                <Td><button type="button" className="font-medium hover:underline" onClick={() => setEdit(b)}>{b.label}</button>{b.externalId && <span className="ml-1 text-xs text-gray-500">{b.externalId}</span>}</Td>
                 <Td className="text-gray-600">{levelName.get(b.levelId) ?? "—"}</Td>
                 <Td className="text-gray-600">{b.boothType}</Td>
                 <Td>
@@ -121,17 +121,17 @@ export function BoothsTable({ event, booths, levels, exhibitors, initialQuery = 
                     </select>
                   </span>
                 </Td>
-                <Td className="text-right tabular-nums">{b.resolvedPriceCents != null ? <span title={b.priceCents != null ? "Manual override" : "From pricing rules"} className={b.priceCents != null ? "font-medium" : "text-gray-600"}>{formatMoney(b.resolvedPriceCents, b.resolvedCurrency ?? event.currency)}{b.priceCents != null && <span className="ml-1 text-[10px] text-primary">override</span>}</span> : <span className="text-gray-400">—</span>}</Td>
+                <Td className="text-right tabular-nums">{b.resolvedPriceCents != null ? <span title={b.priceCents != null ? "Manual override" : "From pricing rules"} className={b.priceCents != null ? "font-medium" : "text-gray-600"}>{formatMoney(b.resolvedPriceCents, b.resolvedCurrency ?? event.currency)}{b.priceCents != null && <span className="ml-1 text-[10px] text-brand">override</span>}</span> : <span className="text-gray-500">—</span>}</Td>
                 <Td className="text-right tabular-nums text-gray-600">{b.areaM2} m²</Td>
                 <Td>
                   <div className="flex flex-wrap items-center gap-1">
                     {b.exhibitorIds.map((id) => (
                       <span key={id} className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs">
                         <span className="max-w-40 truncate">{exName.get(id) ?? id}</span>
-                        <button type="button" className="text-gray-400 hover:text-red-600" title="Unassign" aria-label={`Unassign ${exName.get(id) ?? id}`} onClick={() => unassign(b, id)}>×</button>
+                        <button type="button" className="text-gray-500 hover:text-red-600" title="Unassign" aria-label={`Unassign ${exName.get(id) ?? id}`} onClick={() => unassign(b, id)}>×</button>
                       </span>
                     ))}
-                    <button type="button" className="rounded-full border border-dashed border-border px-2 py-0.5 text-xs text-gray-500 hover:border-primary hover:text-primary" onClick={() => setAssign(b)}>+ assign</button>
+                    <button type="button" className="rounded-full border border-dashed border-border px-2 py-0.5 text-xs text-gray-500 hover:border-brand hover:text-brand" onClick={() => setAssign(b)}>+ assign</button>
                   </div>
                 </Td>
                 <Td className="text-right"><Button size="sm" variant="ghost" onClick={() => setEdit(b)}>Edit</Button></Td>
@@ -189,7 +189,7 @@ function EditBoothDialog({ event, booth, levels, onClose, onSaved }: { event: Bo
         <Field label="Notes (internal)"><Textarea value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} className="min-h-20" /></Field>
         <Switch checked={f.labelHidden} onChange={(v) => setF({ ...f, labelHidden: v })} label="Hide label on the map" />
         <div>
-          <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">Metadata</span>
+          <span className="mb-1 block text-[13px] font-medium text-gray-700">Metadata</span>
           <KeyValueEditor key={booth.id} value={f.metadata} onChange={(metadata) => setF({ ...f, metadata })} />
         </div>
         <div className="flex items-center justify-between gap-2 pt-2">
