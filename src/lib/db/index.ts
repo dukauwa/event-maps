@@ -3,9 +3,7 @@
  *
  * - Local dev, tests and Docker: a SQLite file (`DATABASE_PATH`, default `data/app.db`) through libSQL's native driver.
  * - Serverless (Vercel): a hosted libSQL database (Turso) over HTTP, from `TURSO_DATABASE_URL` + `TURSO_AUTH_TOKEN`.
- *   Each serverless function is its own process with its own /tmp, so a file database there is private to one
- *   function: an event created through the API would not exist for the page that renders it. A hosted database
- *   is the only correct setup on those platforms; the /tmp fallback remains for smoke tests and is flagged in the UI.
+ *   Required there (see ./config.ts); without it the request proxy shows a setup page instead of a half-working app.
  *
  * Migrations and the one-time demo seed run once per process behind a gate that every query awaits.
  */
@@ -19,6 +17,7 @@ import type { LibSQLDatabase } from "drizzle-orm/libsql/driver-core";
 import { migrate } from "drizzle-orm/libsql/migrator";
 import { eq } from "drizzle-orm";
 import * as schema from "./schema";
+import { DATABASE_SETUP_MESSAGE, databaseMissing, remoteDatabase } from "./config";
 import { isSeeded, seedDemo } from "@/lib/seed/demo";
 import { publishEvent } from "@/lib/bundle";
 
@@ -26,33 +25,14 @@ export type DB = LibSQLDatabase<typeof schema>;
 
 const globalForDb = globalThis as unknown as { __tesseraDb?: DB; __tesseraReady?: Promise<void> | null };
 
-/** Hosted database settings. Accepts the names the Vercel ↔ Turso integration injects and a few generic ones. */
-export function remoteDatabase(): { url: string; authToken?: string } | null {
-  const e = process.env;
-  const url = e.TURSO_DATABASE_URL || e.TURSO_URL || e.LIBSQL_URL || (e.DATABASE_URL && /^(libsql|https?|wss?):\/\//.test(e.DATABASE_URL) ? e.DATABASE_URL : "");
-  if (!url) return null;
-  return { url, authToken: e.TURSO_AUTH_TOKEN || e.LIBSQL_AUTH_TOKEN || e.DATABASE_AUTH_TOKEN || undefined };
-}
+export { remoteDatabase } from "./config";
 
-function onServerless(): boolean {
-  return !!(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.NETLIFY);
-}
-
-/**
- * True when data lives in a per-instance /tmp file: fine for a smoke test, but each serverless function sees its own
- * copy and everything resets when the instance recycles.
- */
-export function isEphemeralStorage(): boolean {
-  return !remoteDatabase() && !process.env.DATABASE_PATH && onServerless();
-}
-
-export function storageMode(): "hosted" | "file" | "ephemeral" {
-  return remoteDatabase() ? "hosted" : isEphemeralStorage() ? "ephemeral" : "file";
+export function storageMode(): "hosted" | "file" {
+  return remoteDatabase() ? "hosted" : "file";
 }
 
 export function getDbPath(): string {
   if (process.env.DATABASE_PATH) return process.env.DATABASE_PATH;
-  if (isEphemeralStorage()) return "/tmp/tessera/app.db";
   return path.join(process.cwd(), "data", "app.db");
 }
 
@@ -65,6 +45,7 @@ function createFileClient(file: string): Client {
 }
 
 function createRawClient(): { client: Client; file: boolean } {
+  if (databaseMissing()) throw new Error(DATABASE_SETUP_MESSAGE);
   const remote = remoteDatabase();
   if (remote) return { client: createHttpClient({ url: remote.url, authToken: remote.authToken }), file: false };
   const file = getDbPath();
@@ -76,7 +57,7 @@ const MIGRATIONS = () => path.join(process.cwd(), "drizzle");
 
 async function prepare(raw: Client, file: boolean): Promise<void> {
   // WAL lets the dev server, seed scripts and tests read while another process writes.
-  if (file) await raw.execute(isEphemeralStorage() ? "PRAGMA journal_mode = MEMORY" : "PRAGMA journal_mode = WAL");
+  if (file) await raw.execute("PRAGMA journal_mode = WAL");
   const d = drizzle(raw, { schema });
   try {
     await migrate(d, { migrationsFolder: MIGRATIONS() });

@@ -2,19 +2,12 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["@libsql/client", "libsql"],
-  // Read at runtime, so they must be traced into the serverless bundle (Vercel prunes what it cannot see imported):
-  // the migrations, and libSQL's native driver for file databases. The native driver is required lazily and picks its
-  // binary by platform name, which static tracing cannot follow. (With a hosted database only the HTTP client runs.)
-  outputFileTracingIncludes: {
-    "/**": [
-      "./drizzle/**/*.sql",
-      "./drizzle/meta/**",
-      // File patterns only: pnpm links packages with symlinked folders, which a bare `**` would try to read as files.
-      "./node_modules/.pnpm/@libsql+client@*/node_modules/**/*.{js,cjs,json}",
-      "./node_modules/.pnpm/libsql@*/node_modules/**/*.{js,cjs,json,node}",
-      "./node_modules/.pnpm/@libsql+linux-x64-gnu@*/node_modules/@libsql/linux-x64-gnu/*.{json,node}",
-    ],
-  },
+  // Migrations are read at runtime, so they must be traced into the serverless bundle (Vercel prunes what it cannot
+  // see imported). On serverless hosts only libSQL's HTTP client runs, which is traced like any import; the native
+  // driver for local files is loaded lazily and never needed there.
+  outputFileTracingIncludes: { "/**": ["./drizzle/**/*.sql", "./drizzle/meta/**"] },
+  // The local development database must never ship.
+  outputFileTracingExcludes: { "/**": ["./data/**"] },
   images: { remotePatterns: [{ protocol: "https", hostname: "**" }, { protocol: "http", hostname: "**" }] },
   async headers() {
     return [

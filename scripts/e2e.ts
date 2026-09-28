@@ -135,6 +135,8 @@ async function main() {
     if (nameInputs[0]) await nameInputs[0].fill("Sam Tester");
     await rp.click("button[type='submit']");
     await rp.waitForURL(/\/pay\?order=/, { timeout: 30000 });
+    // Let the checkout hydrate first: a click that lands before React attaches its handler submits the bare form.
+    await rp.waitForLoadState("networkidle");
     await shot(rp, "reserve-pay");
     await rp.click("button[type='submit']");
     await rp.waitForURL(/\/done\?order=/, { timeout: 30000 });

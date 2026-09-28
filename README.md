@@ -38,7 +38,7 @@ pnpm seed:reset     # wipe data/app.db and re-seed
 | Variable | Purpose |
 | --- | --- |
 | `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` | Hosted libSQL database (Turso). Required on serverless hosts; the Vercel ↔ Turso integration sets both. |
-| `DATABASE_PATH` | Local SQLite file when no hosted database is set (default `./data/app.db`). |
+| `DATABASE_PATH` | Local SQLite file when no hosted database is set (default `./data/app.db`). Not usable on serverless hosts. |
 | `UPLOADS_DIR` | Where uploads were written before they moved into the database; still read for those files. |
 | `APP_URL` | Public origin used in links and checkout redirects. |
 | `AUTH_SECRET` | Signs session cookies. Set it on any shared deployment; the fallback key is public. |
@@ -50,7 +50,7 @@ pnpm seed:reset     # wipe data/app.db and re-seed
 
 **Vercel.** Import the repository at [vercel.com/new](https://vercel.com/new), then connect a database: in the project, **Storage → Create Database → Turso** (free tier), connect it to the project, and redeploy. The integration sets `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`; on the first request the app migrates the database and seeds the demo event (once, even when several instances start together). Uploaded images are stored in the database too, so every page and API route sees the same data.
 
-Without a connected database the app still starts, but every serverless function keeps its own copy of the data in `/tmp`: an event created through the API is missing on the page that renders it, and everything resets when an instance recycles. The organiser portal shows a warning while that is the case.
+Until a database is connected, every page shows a short setup screen with these steps (and the API answers `503 database_not_configured`). A file database cannot work there: each serverless function has its own `/tmp`, so an event created through the API would be missing on the page that renders it.
 
 **Docker.** One container, one SQLite file on a volume (or point it at Turso with the two variables above). Runs on Fly.io, Railway, Render, or any VM.
 
